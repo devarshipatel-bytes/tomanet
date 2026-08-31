@@ -1,0 +1,27 @@
+# Core
+torch>=2.2
+torchvision>=0.17
+ultralytics>=8.3.0
+
+# Data / metrics
+numpy>=1.26
+pyyaml>=6.0
+pandas>=2.0
+scikit-learn>=1.4
+torchmetrics>=1.4
+pycocotools>=2.0.7
+
+# Downloads & extraction
+requests>=2.31
+tqdm>=4.66
+py7zr>=0.21          # Taiwan dataset ships as .7z
+kaggle>=1.6          # only for Kaggle-hosted sets; needs ~/.kaggle/kaggle.json
+
+# Dedup / imaging
+Pillow>=10.0
+scipy>=1.11
+opencv-python-headless>=4.9
+
+# Profiling / explainability (used later)
+thop>=0.1.1
+grad-cam>=1.5

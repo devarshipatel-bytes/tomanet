@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+data/raw/
+data/interim/
+data/processed/
+runs/
+weights/
+*.pt
+*.zip
+*.7z
+*.tar.gz
+.DS_Store

@@ -1,0 +1,55 @@
+\section{Evaluation Metrics}
+\label{sec:metrics}
+All metrics are computed by \texttt{torchmetrics} / \texttt{pycocotools} / Ultralytics validators from saved predictions; no hand-computed numbers. Notation: $K$ classes, $N$ test images, confusion matrix $M_{ij}$ (true $i$, predicted $j$), $\mathrm{TP}_k, \mathrm{FP}_k, \mathrm{FN}_k$ per class.
+
+\subsection{Classification}
+\begin{align}
+\text{Accuracy} &= \tfrac{1}{N}\textstyle\sum_k M_{kk} \\
+P_k = \tfrac{\mathrm{TP}_k}{\mathrm{TP}_k+\mathrm{FP}_k},\quad R_k &= \tfrac{\mathrm{TP}_k}{\mathrm{TP}_k+\mathrm{FN}_k},\quad F1_k = \tfrac{2P_kR_k}{P_k+R_k} \\
+\text{Macro-}F1 &= \tfrac{1}{K}\textstyle\sum_k F1_k \qquad\text{(primary metric; robust to imbalance)}\\
+\kappa &= \frac{p_o - p_e}{1-p_e},\quad p_o=\text{Accuracy},\ p_e = \textstyle\sum_k \tfrac{(\sum_j M_{kj})(\sum_i M_{ik})}{N^2}\\
+\text{MCC} &= \frac{N\sum_k M_{kk} - \sum_k t_k p_k}{\sqrt{(N^2-\sum_k p_k^2)(N^2-\sum_k t_k^2)}},\ t_k=\textstyle\sum_j M_{kj},\ p_k=\textstyle\sum_i M_{ik}\\
+\text{ECE} &= \textstyle\sum_{b=1}^{B} \tfrac{|S_b|}{N}\,\big|\mathrm{acc}(S_b)-\mathrm{conf}(S_b)\big| \quad (B=15 \text{ bins})
+\end{align}
+Also: per-class AUROC (one-vs-rest), top-2 accuracy (relevant for visually confusable pairs such as early vs.\ late blight), full confusion matrix in the appendix. Report \textbf{in-domain} (same dataset) and \textbf{cross-domain} (train on A, test on B) values; the \emph{generalisation gap} $\Delta = \text{Acc}_{\text{in}} - \text{Acc}_{\text{cross}}$ is a headline number.
+
+\subsection{Detection}
+COCO protocol via \texttt{pycocotools}:
+\begin{align}
+\text{IoU}(b,\hat b) &= \tfrac{|b\cap \hat b|}{|b\cup \hat b|} \\
+\mathrm{AP}_k(\tau) &= \int_0^1 p_k(r;\tau)\,dr \quad \text{(101-point interpolation)},\\
+\text{mAP@0.5} &= \tfrac1K\textstyle\sum_k \mathrm{AP}_k(0.5),\qquad
+\text{mAP@[0.5{:}0.95]} = \tfrac1K\textstyle\sum_k \tfrac{1}{10}\sum_{\tau\in\{0.5,\dots,0.95\}} \mathrm{AP}_k(\tau)
+\end{align}
+plus AP$_s$/AP$_m$/AP$_l$ (area $<32^2$, $32^2$--$96^2$, $>96^2$ px -- lesions are mostly ``small''), AR@100, and P/R/F1 at conf 0.25 / IoU 0.5 for the deployment operating point. Primary metric: \textbf{mAP@[0.5:0.95]}; secondary: \textbf{AP$_s$}.
+
+\subsection{Efficiency}
+Params (M), GFLOPs at task resolution (\texttt{thop}), model size (MB, FP16 ONNX), latency (ms, batch 1, median of 200 runs after 20 warm-up) on: GPU (FP16), CPU (ONNX Runtime, 4 threads), and an edge device if available (Jetson Orin Nano / Raspberry Pi 5 / Android via TFLite). Report FPS $=1000/\text{latency}$. Optional: energy per image (Jetson \texttt{tegrastats}).
+
+\subsection{Robustness}
+\begin{itemize}
+  \item \textbf{Cross-dataset matrix}: train on each of $\{$PlantVillage, Taiwan, Tomato-Village, Custom$\}$, test on all others; report macro-F1 (cls) / mAP@0.5 (det).
+  \item \textbf{Corruption robustness} (ImageNet-C style, severities 1--5): Gaussian noise, motion blur, brightness, contrast, JPEG, fog; report mean corruption error relative to clean.
+  \item \textbf{Background swap test}: PlantVillage leaves segmented (Otsu/SAM) and pasted on field backgrounds; accuracy drop quantifies background reliance.
+\end{itemize}
+
+\subsection{Explainability (quantitative)}
+Given a saliency map $S\in[0,1]^{H\times W}$ and a ground-truth lesion mask $G$ (or the GT box when no mask exists -- state which):
+\begin{align}
+\text{Pointing game} &= \tfrac{1}{N}\textstyle\sum_n \mathbb{1}\big[\arg\max S_n \in G_n\big] \\
+\text{Energy-based PG} &= \frac{\sum_{(i,j)\in G} S_{ij}}{\sum_{(i,j)} S_{ij}} \quad\text{(fraction of saliency mass inside the lesion)}\\
+\text{Saliency IoU}(\theta) &= \tfrac{|\{S>\theta\}\cap G|}{|\{S>\theta\}\cup G|},\ \theta \text{ chosen so that } |\{S>\theta\}| = |G| \\
+\text{Deletion / Insertion AUC} & \text{ (RISE protocol): remove / insert pixels in order of saliency; AUC of score-vs-fraction curve}
+\end{align}
+Methods compared: Grad-CAM, Grad-CAM++, Score-CAM, LayerCAM (classifier, last stage) and EigenCAM / Grad-CAM on P3--P4 neck features for the detector (target = class score of the matched box, computed before NMS). Sanity check: model-parameter randomisation test (Adebayo et al.) -- saliency must degrade when weights are randomised. ``NSR'' from Deck~B is dropped unless it can be defined.
+
+\subsection{Unsupervised / self-supervised}
+\begin{itemize}
+  \item \textbf{SSL pre-training quality}: $k$-NN accuracy ($k{=}20$) and linear-probe accuracy on frozen features; label-efficiency curve: fine-tune with 1\%, 5\%, 10\%, 25\%, 100\% of labels (3 seeds each).
+  \item \textbf{Anomaly / unknown-disease detection}: image-level AUROC and AUPR, and FPR@95\%TPR, for healthy vs.\ diseased and for known-vs-unknown (hold out 2 disease classes at train time).
+  \item \textbf{Clustering}: NMI, ARI, purity of $k$-means ($k{=}K$) on frozen embeddings vs.\ true labels; silhouette score.
+  \item \textbf{Severity (if lesion masks exist)}: Pearson $r$ and MAE between predicted lesion-area ratio and annotated ratio; agreement with ordinal severity classes via weighted kappa.
+\end{itemize}
+
+\subsection{Statistics}
+Every table cell = mean$\pm$std over $\ge 3$ seeds (5 for headline models). Model-vs-model differences tested with McNemar (classification, paired on the same test images) or a paired $t$-test over seeds (mAP); report $p$-values for the headline claims. Publish the exact split files (image hashes) with the code.

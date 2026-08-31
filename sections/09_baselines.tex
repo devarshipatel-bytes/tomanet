@@ -1,0 +1,62 @@
+\section{Baselines and Comparative Models}
+\label{sec:baselines}
+
+Every model that appears in the literature survey of the slides is included, plus the current (2025--2026) state of the art; otherwise the comparison is dated. All baselines are trained on the \emph{same} splits with the \emph{same} recipe family (\S\ref{sec:experiments}) and reported with params, GFLOPs and latency. Parameter/FLOP figures below are the standard published values (ImageNet, 224 px for classifiers; 640 px for detectors) and are re-measured with \texttt{thop} in the final tables. \textbf{Convention:} Ultralytics reports GFLOPs $=2\times$MACs at 640 px; \texttt{thop}/\texttt{ptflops} return MACs; \texttt{fvcore} counts 1 MAC as 1 FLOP. The final tables state one convention and re-measure every model with the same tool. Detector mAP context on COCO (n-scale): YOLOv8n 37.3, YOLOv10n 39.5, YOLO11n 39.5, YOLOv12n 40.6, YOLO26n 40.9.
+
+\begin{longtable}{@{}L{3.6cm}L{1.6cm}L{1.6cm}L{1.6cm}L{6.6cm}@{}}
+\caption{Classification baselines.}\label{tab:cls_baselines}\\
+\toprule
+Model & Params (M) & GFLOPs & In slides? & Role \\
+\midrule
+\endfirsthead
+\toprule
+Model & Params (M) & GFLOPs & In slides? & Role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+AlexNet & 61 & 0.7 & yes & historical; Chen 2022 (modified AlexNet) \\
+VGG16 & 138 & 15.5 & yes & historical; Younis 2022, Nawaz 2023 \\
+ResNet50 & 25.6 & 4.1 & yes & standard CNN reference \\
+DenseNet121 & 8.0 & 2.9 & yes & the model in Deck A; Abbas 2021 (C-GAN + DenseNet121) \\
+InceptionV3 & 23.8 & 5.7 & yes & Hosen 2025 \\
+EfficientNet-B3 & 12.2 & 1.9 & yes & Ullah 2023 (EffiMob-Net), Ahmad 2021 \\
+MobileNetV2 & 3.5 & 0.3 & yes & Sohib 2022; lightweight reference \\
+MobileNetV3-Large & 5.4 & 0.22 & no & modern lightweight reference \\
+SqueezeNet 1.1 & 1.2 & 0.35 & yes & Thuseethan 2022 (Siamese), Guha Paul 2023 \\
+EfficientNetV2-S & 21.5 & 8.4 & no & strong modern CNN \\
+ConvNeXt-Tiny & 28.6 & 4.5 & no & modern CNN; same design family as \model{} (large-kernel DW) \\
+ViT-B/16 & 86 & 17.6 & yes & Gangwar 2023; transformer reference \\
+Swin-Tiny & 28.3 & 4.5 & no & hierarchical transformer reference \\
+MobileViT-S / EfficientViT-M2 & 5.6 / 4.2 & 2.0 / 0.2 & no & hybrid lightweight; Thai 2025 (CNN+Transformer) \\
+YOLOv8n-cls / YOLO11n-cls / YOLO26n-cls & 2.7 / 1.6 / 2.8 & 0.5 / 0.5 / 0.5 (224 px) & no & same framework as \modelcls{}; fairest lightweight comparison (ImageNet top-1 $\approx$ 69 / 70 / 71.4) \\
+RepViT-M0.9 / FastViT-T8 / StarNet-S1 & 5.1 / 3.6 / 2.9 & 0.8 / 0.7 / 0.4 & no & 2023--2024 mobile SOTA; closest competitors to \model{} by design \\
+\textbf{\modelcls{}-n/s} & target 1.3 / 4.6 & target 0.3 / 1.0 & -- & proposed \\
+\end{longtable}
+
+\begin{longtable}{@{}L{3.6cm}L{1.6cm}L{1.6cm}L{1.6cm}L{6.6cm}@{}}
+\caption{Detection baselines (640 px).}\label{tab:det_baselines}\\
+\toprule
+Model & Params (M) & GFLOPs & In slides? & Role \\
+\midrule
+\endfirsthead
+\toprule
+Model & Params (M) & GFLOPs & In slides? & Role \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Faster R-CNN R50-FPN & 41.5 & $\approx$180 & yes & two-stage reference (Deck B) \\
+Mask R-CNN R50-FPN & 44 & $\approx$260 & yes & Junare 2025; only if masks exist \\
+YOLOv4 / YOLOv4-tiny & 64 / 6 & 60 / 7 & yes & Wang 2021, Gangwar 2023 \\
+YOLOv5s / YOLOv5n & 7.2 / 1.9 & 16.5 / 4.5 & yes & Oni 2025 \\
+YOLOv8n / s & 3.2 / 11.2 & 8.7 / 28.6 & yes & Deck B model; Wang 2023 \\
+YOLOv10n / s & 2.3 / 7.2 & 6.7 / 21.6 & no & NMS-free \\
+YOLO11n / s & 2.6 / 9.4 & 6.5 / 21.5 & no & current Ultralytics default \\
+YOLOv12n / s & 2.6 / 9.3 & 7.6 / 23.7 & no & attention-centric (area attention), Feb 2025 \\
+YOLO26n / s & 2.4 / 9.5 & 5.4 / 20.7 & no & Jan 2026: NMS-free end-to-end, DFL removed, small-target-aware assignment (STAL) \\
+RT-DETR-R18 & 20 & 60 & no & transformer detector reference \\
+\textbf{\modeldet{}-n/s} & target 2.5 / 8 & target 7 / 22 & -- & proposed \\
+\end{longtable}
+
+\paragraph{Fairness rules.} (i) identical train/val/test image lists (hashes published); (ii) identical input resolution per task; (iii) identical epochs and early-stopping rule; (iv) baseline hyper-parameters left at their official defaults (Ultralytics for detectors, \texttt{timm} recipe for classifiers) -- tuning only \model{} would bias the comparison; (v) 3--5 seeds per model, mean$\pm$std; (vi) ImageNet initialisation for all baselines that have it, and both ImageNet and SSL initialisation for \model{} so the effect of pre-training is isolated from the effect of architecture.

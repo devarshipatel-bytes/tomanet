@@ -1,0 +1,49 @@
+\section{Proposed Pipeline}
+\label{sec:pipeline}
+
+\subsection{Overview}
+\begin{center}
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw,rounded corners,align=center,minimum height=8mm,inner sep=3pt,fill=blue!4},
+  dat/.style={draw,rounded corners,align=center,minimum height=8mm,inner sep=3pt,fill=green!6},
+  res/.style={draw,rounded corners,align=center,minimum height=8mm,inner sep=3pt,fill=orange!8},
+  ar/.style={-{Latex},thick}
+]
+\node[dat] (d1) {Public datasets\\PV, Taiwan, PlantDoc,\\Tomato-Village, CCMT,\\FieldPlant, PlantSeg};
+\node[dat,below=5mm of d1] (d2) {Custom field set\\North Gujarat};
+\node[box,right=8mm of d1] (pp) {Curation\\pHash dedup,\\label harmonisation,\\fixed splits};
+\node[box,above right=2mm and 8mm of pp] (pool) {Unlabelled pool\\(labels discarded)};
+\node[box,right=8mm of pool] (ssl) {SSL pre-training\\DINO on trunk};
+\node[box,below right=6mm and 8mm of pp] (sup) {Supervised training};
+\node[box,right=8mm of ssl] (trunk) {\textbf{TomaBlock trunk}};
+\node[box,below=10mm of trunk] (cls) {\modelcls\\GAP + FC};
+\node[box,below=6mm of cls] (det) {\modeldet\\PAFPN + anchor-free head};
+\node[res,right=10mm of cls] (o1) {Disease class\\+ calibrated confidence};
+\node[res,below=4mm of o1] (o2) {Lesion boxes\\(multi-disease per leaf)};
+\node[res,below=4mm of o2] (o3) {Saliency maps\\+ XAI metrics};
+\node[res,below=4mm of o3] (o4) {Unknown-disease flag\\(anomaly score)};
+\node[res,below=4mm of o4] (o5) {Severity \%\\(lesion classes only)};
+\draw[ar] (d1) -- (pp); \draw[ar] (d2) -- (pp);
+\draw[ar] (pp) -- (pool); \draw[ar] (pp) -- (sup);
+\draw[ar] (pool) -- (ssl); \draw[ar] (ssl) -- (trunk);
+\draw[ar] (sup.east) -- ++(6mm,0) |- (trunk.west);
+\draw[ar] (trunk) -- (cls); \draw[ar] (cls) -- (det);
+\draw[ar] (cls) -- (o1); \draw[ar] (det.east) -- (o2.west);
+\draw[ar] (det.east) -- (o3.west); \draw[ar] (trunk.east) -- ++(5mm,0) |- (o4.east);
+\draw[ar] (o2) -- (o5);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Stage-by-stage}
+\begin{description}[style=nextline]
+  \item[S1 -- Curation.] Download from \emph{original} sources (GitHub/Mendeley/Zenodo), not Kaggle re-uploads, so licences and provenance are traceable. Perceptual-hash deduplication within and \emph{across} datasets (PlantVillage derivatives overlap heavily). Map every dataset's class names onto the canonical vocabulary (Table~\ref{tab:classes}). Emit fixed split files + a manifest with per-image SHA-256.
+  \item[S2 -- Task-specific pre-processing.] \emph{Classification}: resize shorter side, random-resized-crop to 224 (256 variant for PlantVillage native), ImageNet normalisation, RandAugment + Mixup/CutMix. \emph{Detection}: letterbox to 640, mosaic + HSV + flips + scale, closed mosaic for the last 10 epochs. One-hot encoding is used only for the classifier; detection uses box labels (this corrects B8).
+  \item[S3 -- Pre-training.] DINO on the unlabelled pool (\S\ref{sec:unsup}), producing trunk weights that both heads can load.
+  \item[S4 -- Supervised training.] \modelcls{} and \modeldet{} from the shared trunk, plus all baselines under identical recipes.
+  \item[S5 -- Inference.] Two deployment modes: (a) \emph{whole-image classification} for single-leaf/phone-macro use; (b) \emph{detection} for canopy images, which yields per-lesion boxes and therefore multi-disease-per-leaf output. Both emit a calibrated confidence (temperature scaling fitted on validation) and an anomaly score; if the anomaly score exceeds the threshold the prediction is returned as \emph{unknown} rather than forced into one of the 10 classes.
+  \item[S6 -- Explanation and severity.] Saliency map for the predicted class/box, scored quantitatively (\S\ref{sec:metrics}); lesion-area ratio inside boxes for the four lesion-forming classes.
+\end{description}
+
+\subsection{Deliverables}
+Code (fork of Ultralytics + a thin experiment runner), split manifests, trained weights, the North-Gujarat dataset with DOI, and one results script that regenerates every table in the paper from saved predictions -- so that no number is ever typed by hand (this is what prevents A1/B1 from recurring).

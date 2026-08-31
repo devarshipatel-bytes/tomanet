@@ -1,0 +1,85 @@
+\section{Datasets: What Exists and What to Use}
+\label{sec:datasets}
+
+\subsection{The single most important fact}
+Most ``different'' tomato datasets on Kaggle are the \textbf{same} data. PlantVillage's tomato subset (18\,160 images, 10 classes, 256$\times$256, single detached leaf on a uniform background) is re-split, augmented and re-uploaded as \texttt{kaustubhb999/tomatoleaf} (11\,000), \texttt{vipoooool/new-plant-diseases-dataset}, \texttt{noulam/tomato}, \texttt{ahmadzargar/...segmented}, \texttt{wellCh4n/tomato-leaf-disease-image} and others. The ``10\,000 images / 10 classes'' set in Deck~A and the ``Tomato Leaf 18\,000'' in Deck~B are both this. \textbf{Training on one and testing on another is not a cross-dataset experiment.} Real cross-domain evaluation requires genuinely independent field data (Taiwan, PlantDoc, Tomato-Village, FieldPlant, CCMT, PlantWild, SLIF-Tomato, and the North-Gujarat set).
+
+How bad is the shift? A ResNet with in-domain PlantVillage F1 of 0.987 scores \textbf{0.012} on Tomato-Village and 0.130 on a merged tomato benchmark~\cite{biorxiv2024}; a classifier using only 8 background pixels of PlantVillage reaches 49\% (chance 2.6\%)~\cite{noyan2022}.
+
+\subsection{Recommended dataset set for this project}
+\begin{center}\small
+\begin{tabular}{@{}L{2.6cm}L{1.5cm}L{5.0cm}L{2.4cm}L{3.6cm}@{}}
+\toprule
+Dataset & Role & Why & Task & Licence \\
+\midrule
+PlantVillage-tomato & Source (lab) & the community reference; needed for comparability with every prior paper; deduplicate before use & cls & CC0/open \\
+Taiwan tomato & Field (small) & 622 \emph{raw} images, complex backgrounds; augmented 4\,976 version must not be split randomly & cls & CC BY 4.0 \\
+PlantDoc (tomato) & Field (web) & 9 tomato classes with boxes; standard lab$\to$field target & cls + det & CC BY 4.0 \\
+Tomato-Village & Field (India) & Rajasthan fields; three variants (multiclass, \textbf{multi-label}, \textbf{detection}); contains classes absent from PlantVillage (leaf miner, spotted wilt, nutrition deficiency) & cls + multi-label + det & unstated -- contact authors \\
+CCMT (tomato slice) & Field (Ghana) & 5 tomato classes, different continent; used inside TLD46k & cls & CC BY 4.0 \\
+FieldPlant (tomato) & Field (Cameroon) & pathologist-supervised boxes, dense canopy backgrounds & det & CC BY 4.0 \\
+PlantSeg (tomato) & Masks & pixel-level lesion masks in the wild -- solves the XAI/severity mask problem without new annotation & seg & CC BY 4.0 (check record version) \\
+\textbf{North-Gujarat custom} & Field (ours) & the contribution; unique region/varieties & cls + det + masks & to be released CC BY 4.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Optional additions if more field diversity is wanted, all CC BY 4.0 on Mendeley: SLIF-Tomato (Sri Lanka, 890 raw, boxes), Tomato Leaf Dataset AIUB (Bangladesh, 731 raw, boxes), Daffodil IU (2\,600, 11 classes incl.\ leaf miner and insect damage), \texttt{jttrv2w27r} (2\,995, 7 classes incl.\ Mg deficiency), TOM2024 (Burkina Faso, $\approx$5\,520 tomato images, 14 classes incl.\ pests and abiotic disorders), Tomato Leaf Damage Progression (8\,596 images, 20\,291 boxes, \textbf{3 severity levels} -- the closest thing to a severity benchmark).
+
+\subsection{Full catalogue}
+\begin{longtable}{@{}L{3.0cm}L{1.0cm}L{1.6cm}L{3.0cm}L{1.5cm}L{1.7cm}L{2.4cm}@{}}
+\caption{Publicly downloadable tomato datasets (verified 30 Aug 2026). ``approx.'' where the source page could not be parsed exactly.}\label{tab:datasets}\\
+\toprule
+Dataset & Year & Images & Tomato classes & Cond. & Annot. & Licence \\
+\midrule
+\endfirsthead
+\toprule
+Dataset & Year & Images & Tomato classes & Cond. & Annot. & Licence \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{7}{@{}l}{\emph{Leaf disease -- classification}}\\
+PlantVillage tomato & 2015 & 18\,160 & 10 (TYLCV 5\,357 \dots{} mosaic 373) & lab & label & CC0/open \\
+New Plant Diseases (Aug.) & 2018 & $\approx$22k tomato & 10 (= PV) & lab & label & Kaggle: orig.\ authors \\
+kaustubhb999 tomatoleaf & 2020 & 11\,000 & 10 (= PV) & lab & label & CC0 / CC BY 4.0 (Zenodo copy) \\
+Taiwan tomato~\cite{taiwands} & 2020 & 622 raw / 4\,976 aug & 6 (bacterial spot, black mold, gray spot, healthy, late blight, powdery mildew) & mixed/field & label & CC BY 4.0 \\
+Tomato Disease Multiple Sources & 2022 & 32.5k & 11 (PV + powdery mildew) & mixed & label & unstated \\
+CCMT tomato~\cite{ccmt} & 2023 & part of 24\,881 raw & 5 (healthy, leaf blight, leaf curl, septoria, verticillium wilt) & field & label & CC BY 4.0 \\
+PlantWild~\cite{plantwild} & 2024 & 18.5k (89 cls) / v2 & $\approx$10 tomato & wild & label + text & CC BY-NC-ND 4.0 \\
+TLD46k~\cite{tld46k} & 2026 & 46\,070 & PV+CCMT+PlantDoc merged & mixed & label & download unconfirmed \\
+LeafNet~\cite{scold} & 2026 & 186k (97 cls, 22 crops) & tomato included & mixed & label + caption & CC BY 4.0 \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Leaf disease -- detection / segmentation}}\\
+PlantDoc~\cite{plantdoc} & 2020 & 2\,598 / 8\,851 boxes; $\approx$700 tomato & 9 tomato & field/web & boxes & CC BY 4.0 \\
+PlantDoc-Tomatoes (Roboflow) & 2023 & 686 & 9 & field/web & polygons & CC BY 4.0 \\
+Tomato-Village~\cite{tomatovillage} & 2023 & $\approx$3\,231 raw & $\approx$8 incl.\ leaf miner, spotted wilt, nutrition deficiency & field (Rajasthan) & label / multi-label / boxes & unstated \\
+FieldPlant~\cite{fieldplant} & 2023 & 5\,170 / 8\,629 leaves & $\approx$6 tomato & field (Cameroon) & boxes & CC BY 4.0 \\
+PlantSeg~\cite{plantseg} & 2024--25 & 11\,458 disease + 8\,000 healthy & tomato among 34 species & wild & \textbf{masks} & CC BY 4.0 \\
+Sylhet Agri.\ Univ.\ (farukalam) & 2024 & 640$\times$640 & 7 & field & boxes & public domain \\
+sebastianpalaciob & 2024 & 4\,323 / 15\,135 boxes & 9 & mixed & boxes & CC BY-NC-SA \\
+vasantharank (YOLOv8) & 2025 & 10\,853 & 10 (PV re-annotated) & lab & boxes & CC BY-NC-SA \\
+Sichuan greenhouse~\cite{sichuan2025} & 2025 & 1\,026 & 3 (viral, gray mold, bacterial wilt; leaf+fruit+stem) & greenhouse & boxes & CC BY 4.0 \\
+AIUB Bangladesh~\cite{aiub2025} & 2025 & 731 / 1\,621 ann. & 7 & field & boxes & CC BY 4.0 \\
+SLIF-Tomato~\cite{slif2026} & 2026 & 890 raw / 8\,934 aug & 8 & field (Sri Lanka) & boxes & CC BY 4.0 \\
+Damage Progression & 2026 & 8\,596 / 20\,291 ann. & 3 diseases $\times$ 3 severity levels & field + synthetic & boxes & CC BY 4.0 \\
+TomatoDet~\cite{tomatodet} & 2024 & $>$10\,000 & 5 & greenhouse & VOC boxes & partial release only \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Fruit / ripeness / pest}}\\
+LaboroTomato & 2020 & 804 / 9\,777 inst. & 6 ripeness $\times$ size & farm & \textbf{COCO masks} & CC BY-NC-SA 4.0 \\
+tomatOD & 2020 & 277 / 2\,418 fruit & 3 ripeness & greenhouse & COCO boxes & CC BY-NC-SA 4.0 \\
+Tomato Detection (Larxel) & 2020 & 895 & 1 (``tomato'') & mixed & VOC boxes & see page \\
+TomatoPlantfactory & 2022--26 & 520 / 9\,112 inst. & green/red & plant factory & VOC+YOLO & CC BY 4.0 \\
+SAU maturity \& quality & 2023 & 2\,986 raw & mature/immature, fresh/defect & lab & label & CC BY 4.0 \\
+TOM2024~\cite{tom2024} & 2024--25 & $\approx$5\,520 tomato & 14 incl.\ \emph{Tuta absoluta}, blossom-end rot, sunburn, N-excess & field (Burkina Faso) & label & CC BY 4.0 \\
+8 tomato pests (Huang) & 2020 & 609 raw / 4\,263 aug & 8 pest species & web/IPM & label & CC BY 4.0 \\
+\emph{Tuta absoluta} Tanzania & 2020 & 4\,341 & healthy vs infested & net-house & label & CC BY 4.0 \\
+TomatoEbola~\cite{tomatoebola} & 2024 & 326 / 784 boxes & healthy vs \emph{Tuta absoluta} & field (Nigeria) & boxes & CC BY 4.0 \\
+\end{longtable}
+
+\paragraph{Not usable / not available.} AI Challenger 2018 (tomato $\approx$11\,610 images with severity labels) -- host defunct, only unofficial mirrors. PDD271 -- only $\approx$10 sample images per class are public. KUTomaData -- no public release found. IP102 has no tomato-crop branch. Plant Pathology 2020/2021 is apple only.
+
+\paragraph{Per-dataset caveats to state in the paper.}
+PlantVillage: lab bias, near-duplicates leaking across random splits (a deduplicated release exists, Mendeley \texttt{3zwdw6y4pn}). PlantDoc: web-scraped, label noise (bacterial spot vs.\ Septoria confounded, per the original paper), extreme imbalance (spider mites $\approx$2 images). Taiwan: only 622 raw images -- the 4\,976 version is rotation/mirror augmentation, so splitting it randomly leaks. Tomato-Village: single region (Rajasthan), licence unstated -- ask the authors before redistributing. FieldPlant: cassava-dominated, tomato slice small. PlantWild/PlantSeg v1: non-commercial terms, possible overlap with PlantDoc. TOM2024: extreme imbalance (\emph{Tuta absoluta} $n{=}19$, fusarium $n{=}18$). SLIF-Tomato: 8\,934 is post-augmentation of 890 raw.
+
+\subsection{Answer to ``which fruit dataset''}
+There is no public tomato-\emph{fruit-disease} detection dataset of useful size. LaboroTomato, tomatOD, TomatoPlantfactory and the SAU set are \emph{ripeness/quality}, not disease. The only fruit-disorder labels found are inside TOM2024 (blossom-end rot $n{=}118$, sunburn $n{=}51$) and the Sichuan greenhouse set (gray mold on fruit). So: present the fruit branch as \textbf{ripeness/maturity detection} (defensible, data exists), and treat fruit \emph{disorders} as a small-$n$ pilot only if the North-Gujarat set contains them.

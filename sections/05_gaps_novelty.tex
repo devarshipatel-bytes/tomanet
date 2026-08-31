@@ -1,0 +1,50 @@
+\section{Research Gaps and Novelty Statement}
+\label{sec:novelty}
+
+\subsection{Gaps that are real (verified against 2024--2026 literature)}
+The gap slides in both decks list mostly \emph{true} gaps, but they are stated in a form that any 2024 paper could also claim. Below they are restated as verified, checkable absences, each with the evidence and the experiment that closes it.
+
+\begin{longtable}{@{}L{0.6cm}L{4.7cm}L{6.4cm}L{4.2cm}@{}}
+\caption{Verified gaps.}\label{tab:gaps}\\
+\toprule
+\# & Gap & Evidence that it is still open & Closed by \\
+\midrule
+\endfirsthead
+\toprule
+\# & Gap & Evidence that it is still open & Closed by \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+G1 & No lightweight block family evaluated as \emph{both} classifier and detector on tomato & Existing multi-task work is heavy (PMJDM 49\,M / 146\,G~\cite{pmjdm}) or single-task; Ultralytics shares a backbone across tasks but nobody has studied it for tomato disease & \S\ref{sec:model}, E1/E2/E8 \\
+G2 & No label-efficiency curve for SSL on tomato & Every plant-SSL paper fine-tunes with 100\% labels~\cite{plantclr,sonavane2026,conmamba}; best tomato semi-supervised point is TOM-SSL 72.51\% @10\%~\cite{tomssl2025} & E4 \\
+G3 & No modern anomaly-detection benchmark on tomato & PatchCore/PaDiM/SimpleNet/DRAEM never reported on tomato; only potato 0.99~\cite{katafuchi2021} and cherry/pepper~\cite{calabro2022} & E5 \\
+G4 & No leave-one-disease-out open-set benchmark on tomato & Tomato OOD is only the easy healthy-vs-diseased setting~\cite{dong2024,dong2025} or open-vocabulary detection~\cite{pdcvld} & E5 \\
+G5 & No quantitative XAI on tomato & Grad-CAM/Eigen-CAM used as figures only~\cite{xsetomatonet,leafdet,gunasekaran2026}; pointing game / energy-PG / deletion--insertion absent from the tomato literature; one 2026 paper lists this as its own limitation~\cite{scirep2026xai} & E6 \\
+G6 & No frozen DINOv2 $k$-NN / linear-probe number for tomato & cheapest possible baseline, unpublished & E4 \\
+G7 & Cross-dataset generalisation reported piecemeal & Isolated numbers exist (PV$\to$PlantDoc $-67.7$\,pp~\cite{fpls2026gap}; F1 0.987$\to$0.012 on Tomato-Village~\cite{biorxiv2024}) but no systematic $N\times N$ matrix over tomato datasets for both tasks & E3 \\
+G8 & Unsupervised severity never validated against expert scores on tomato & $k$-means lesion-ratio work exists~\cite{charak2022} without $\rho_c$/$R^2$; tomato severity ground truth does exist~\cite{sad2015} & E-severity (scoped) \\
+G9 & Region gap: no public tomato dataset from Gujarat/western India & Indian field data is Rajasthan (Tomato-Village) only & dataset release \\
+\end{longtable}
+
+\subsection{Gaps in the decks that must be dropped or restated}
+\begin{itemize}
+  \item \emph{``No temporal / progression tracking''} -- true, but there \emph{is} now a public severity-progression set (Tomato Leaf Damage Progression, 8\,596 images, 3 severity levels). Without collecting a time series you cannot claim this; either use that dataset for severity \emph{levels} (not time) or drop the claim.
+  \item \emph{``Research is disease-specific, single disease at a time''} -- no longer true; most 2024--2026 tomato papers are 5--11 class multi-disease.
+  \item \emph{``Some research only distinguishes healthy vs unhealthy''} -- true of a few papers, but it is not a gap anyone will credit in 2026.
+  \item \emph{``Models fail to generalise to other crops''} -- cross-crop generalisation is a different research problem; keep the scope on tomato and say so.
+  \item \emph{``Pests and weeds ignored''} -- partly false: \emph{Tuta absoluta} datasets exist (TomatoEbola, Tanzania set, TOM2024, Tomato-Village leaf miner). Restate as: pest damage classes are present but severely imbalanced ($n{=}19$ in TOM2024).
+\end{itemize}
+
+\subsection{Novelty statement (what to claim, in order)}
+No single item below is unprecedented in machine learning; the combination, on tomato, with a released field dataset, is. Claim them in this order:
+\begin{enumerate}
+  \item \textbf{A single lightweight block family (\textsc{TomaBlock}) instantiated as both a classifier and a detector} (\modelcls{}/\modeldet{}, $\le$5\,M params), trained under one recipe and evaluated under one protocol, with cross-task trunk transfer measured (G1).
+  \item \textbf{A cross-domain generalisation matrix for tomato} over $\ge$5 independent datasets for \emph{both} tasks, reporting the gap $\Delta$ rather than only in-domain accuracy (G7).
+  \item \textbf{The first label-efficiency study for tomato}: SSL pre-training on a pooled unlabelled tomato corpus vs.\ ImageNet vs.\ scratch, at 1/5/10/25/100\% labels, including a frozen-DINOv2 reference (G2, G6).
+  \item \textbf{The first unknown-disease benchmark on tomato}: healthy-only anomaly detection plus leave-one-disease-out open-set, with AUROC/FPR95 (G3, G4).
+  \item \textbf{The first quantitative explainability evaluation on tomato}: pointing game, energy-based pointing game, saliency--lesion IoU and deletion/insertion, with the Adebayo sanity check, against PlantSeg masks and our own polygons (G5).
+  \item \textbf{A documented, DOI-released North-Gujarat field dataset} with an annotation protocol and inter-annotator agreement (G9).
+\end{enumerate}
+
+\paragraph{What \emph{not} to claim.} Do not claim state-of-the-art PlantVillage accuracy (saturated at 99.4--99.96\%). Do not claim to beat YOLOv11x on Tomato-Village at equal scale without the numbers (the fair benchmark is mAP@0.5 0.936 / mAP@[0.5:0.95] 0.790~\cite{ramos2025}); target the \emph{nano} operating point, where the published reference is YOLOv12n at 0.864/0.604. Do not claim severity for non-lesion diseases (TYLCV, mosaic, mite damage). Do not claim real-time field deployment without measuring latency on the actual device.

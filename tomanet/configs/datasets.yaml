@@ -1,0 +1,313 @@
+# Tomato dataset registry. Verified 2026-08-30.
+#
+# READ THIS FIRST
+#   Most Kaggle "tomato" datasets are re-splits of PlantVillage. Training on one and
+#   testing on another is NOT a cross-domain experiment. Sets marked `derivative_of:
+#   plantvillage` must be deduplicated against it and never used as a held-out domain.
+#
+# tier:   core   - the eight recommended for this project
+#         extra  - additional field diversity, all optional
+#         fruit  - ripeness / fruit / pest sets (not leaf disease)
+# source: zenodo | mendeley | github | kaggle | manual
+# auto:   true if the script can fetch it without credentials
+
+datasets:
+
+  # ---------------------------------------------------------------- core (leaf) ----
+  plantvillage:
+    tier: core
+    role: source_lab
+    source: github
+    repo: spMohanty/PlantVillage-Dataset
+    branch: master
+    licence: "CC0 / open (no LICENSE file in the original repo)"
+    images: 54306
+    tomato_images: 18160
+    tomato_classes: 10
+    resolution: 256x256
+    conditions: lab
+    annotation: image_label
+    size_hint: "~2.0 GB"
+    caveats:
+      - "Single detached leaf on a uniform background."
+      - "A classifier seeing only 8 background pixels scores 49% (chance 2.6%), arXiv:2206.04374."
+      - "Contains near-duplicates that leak across random splits - run scripts/dedup.py."
+    alt_kaggle: abdallahalidev/plantvillage-dataset
+
+  taiwan:
+    tier: core
+    role: field_small
+    source: mendeley
+    mendeley_id: ngdgg79rzb
+    version: 1
+    licence: CC BY 4.0
+    images: 622          # raw; the 4976 variant is rotation/mirror augmentation
+    tomato_classes: 6
+    class_names: [bacterial_spot, black_mold, gray_spot, healthy, late_blight, powdery_mildew]
+    resolution: 227x227
+    conditions: field_mixed
+    annotation: image_label
+    size_hint: "~48 MB (.7z)"
+    caveats:
+      - "Only 622 raw images. Do NOT randomly split the augmented 4976 version - it leaks."
+      - "VERIFIED 2026-08-30 by scripts/dedup.py: the shipped split leaks. 619 of 623
+         duplicate clusters span 'data augmentation/' and 'Preprocessed data/', and
+         'Preprocessed data/Test/.../Bs1.JPG' reappears as 'data augmentation/Train/.../Bs1.JPG'.
+         Use 'Preprocessed data' only, and re-split it yourself from the 622 raw images."
+
+  plantdoc:
+    tier: core
+    role: field_web
+    source: github
+    repo: pratikkayal/PlantDoc-Dataset
+    branch: master
+    licence: CC BY 4.0
+    images: 2598
+    boxes: 8851
+    tomato_images: 700        # approx.
+    tomato_classes: 9
+    conditions: field_web
+    annotation: [image_label, bbox]
+    size_hint: "~2.6 GB"
+    caveats:
+      - "Web-scraped; label noise (bacterial spot vs Septoria confounded in the source paper)."
+      - "Severe imbalance - two-spotted spider mites has ~2 images."
+
+  tomato_village:
+    tier: core
+    role: field_india
+    source: github
+    repo: mamta-joshi-gehlot/Tomato-Village
+    branch: main
+    licence: "NOT STATED - contact the authors before redistributing"
+    images: 3231              # approx., raw
+    tomato_classes: 8         # approx.
+    conditions: field
+    annotation: [image_label, multilabel, bbox]
+    size_hint: "~1.6 GB"
+    notes:
+      - "Three variants: multiclass, multilabel, and object detection."
+      - "Contains classes absent from PlantVillage: leaf miner, spotted wilt, nutrition deficiency."
+      - "Published detection reference: YOLOv11x mAP@0.5 0.936 / mAP@[.5:.95] 0.790; YOLOv12n 0.864 / 0.604."
+    caveats:
+      - "Single region (Rajasthan) - do not treat as representative of all Indian fields."
+
+  ccmt:
+    tier: core
+    role: field_ghana
+    source: mendeley
+    mendeley_id: bwh3zbpkpv
+    version: 1
+    licence: CC BY 4.0
+    images: 24881             # raw, all crops
+    tomato_classes: 5
+    class_names: [healthy, leaf_blight, leaf_curl, septoria_leaf_spot, verticillium_wilt]
+    conditions: field
+    annotation: image_label
+    size_hint: "~4 GB"
+
+  plantseg:
+    tier: core
+    role: masks
+    source: zenodo
+    record: 14935094
+    licence: "CC BY 4.0 (verify the record version - v1 was CC BY-NC-ND)"
+    images: 11458             # disease images, + 8000 healthy
+    conditions: wild
+    annotation: segmentation_mask
+    size_hint: "~8 GB"
+    notes:
+      - "Pixel-level lesion masks. Solves the XAI / severity mask requirement without new annotation."
+
+  fieldplant:
+    tier: core
+    role: field_cameroon
+    source: manual
+    url: https://universe.roboflow.com/plant-disease-detection/fieldplant
+    licence: CC BY 4.0
+    images: 5170
+    boxes: 8629
+    conditions: field
+    annotation: bbox
+    manual_reason: "Roboflow Universe requires an API key or a browser download."
+    caveats:
+      - "Cassava-dominated; the tomato slice is small."
+
+  custom_north_gujarat:
+    tier: core
+    role: field_ours
+    source: manual
+    url: "(not yet released)"
+    licence: "to be released CC BY 4.0"
+    images: 3153
+    conditions: field
+    annotation: [image_label, bbox, polygon]
+    manual_reason: "Local dataset - place it at data/raw/custom_north_gujarat/ yourself."
+    notes:
+      - "Needs a dataset card before publication: location, dates, varieties, cameras,"
+      - "annotation protocol, number of annotators, inter-annotator agreement, splits."
+
+  # --------------------------------------------------------------- extra (leaf) ----
+  plantvillage_tomato_zenodo:
+    tier: extra
+    role: source_lab
+    derivative_of: plantvillage
+    source: zenodo
+    record: 8311631
+    licence: CC BY 4.0
+    images: 11000
+    tomato_classes: 10
+    conditions: lab
+    annotation: image_label
+    size_hint: "~192 MB"
+    caveats:
+      - "This IS PlantVillage, resampled to 1000 train + 100 val per class."
+      - "Convenient small stand-in; never use as a separate domain."
+
+  plantvillage_dedup:
+    tier: extra
+    role: source_lab
+    derivative_of: plantvillage
+    source: mendeley
+    mendeley_id: 3zwdw6y4pn
+    version: 1
+    licence: CC BY 4.0
+    tomato_classes: 6
+    conditions: lab
+    annotation: image_label
+    notes: ["Deduplicated and deblurred PlantVillage with a fixed 70/15/15 split."]
+
+  aiub_bangladesh:
+    tier: extra
+    role: field_bangladesh
+    source: mendeley
+    mendeley_id: bpfd9cns5g
+    version: 2
+    licence: CC BY 4.0
+    images: 731
+    boxes: 1621
+    tomato_classes: 7
+    resolution: 640x640
+    conditions: field
+    annotation: bbox
+
+  daffodil_iu:
+    tier: extra
+    role: field_bangladesh
+    source: mendeley
+    mendeley_id: 93h9p62kg4
+    version: 1
+    licence: CC BY 4.0
+    images: 2600
+    tomato_classes: 11
+    conditions: field
+    annotation: image_label
+    notes: ["Includes leaf miner (519) and insect damage (336) - useful pest classes."]
+
+  bangladesh_field_cls:
+    tier: extra
+    role: field_bangladesh
+    source: mendeley
+    mendeley_id: jttrv2w27r
+    version: 2
+    licence: CC BY 4.0
+    images: 2995
+    tomato_classes: 7
+    conditions: field
+    annotation: image_label
+    notes: ["Includes magnesium deficiency (744) - a non-biotic stress class."]
+
+  damage_progression:
+    tier: extra
+    role: severity
+    source: mendeley
+    mendeley_id: s96sc8sh6y
+    version: 1
+    licence: CC BY 4.0
+    images: 8596
+    boxes: 20291
+    conditions: field_plus_synthetic
+    annotation: bbox
+    notes:
+      - "Fusarium / leaf miner / early blight x 3 severity levels (initial, intermediate, advanced)."
+      - "The closest public thing to a tomato severity benchmark."
+    caveats: ["Partly synthetic (Poisson-blended)."]
+
+  sichuan_greenhouse:
+    tier: extra
+    role: greenhouse
+    source: mendeley
+    mendeley_id: c2x8rynybg
+    version: 1
+    licence: CC BY 4.0
+    images: 1026
+    tomato_classes: 3
+    resolution: 3024x4032
+    conditions: greenhouse
+    annotation: bbox
+    notes: ["Leaves, fruits and stems are all labelled - relevant to the non-leaf gap."]
+
+  # ------------------------------------------------------------ fruit and pest ----
+  tuta_tanzania:
+    tier: fruit
+    role: pest
+    source: zenodo
+    record: 4305416
+    licence: CC BY 4.0
+    images: 4341
+    conditions: net_house
+    annotation: image_label
+    size_hint: "~1.8 GB"
+
+  tomato_ebola:
+    tier: fruit
+    role: pest
+    source: manual              # Zenodo record 13324917 is access-restricted (verified 2026-08-30)
+    url: https://zenodo.org/records/13324917
+    manual_reason: "Zenodo record is restricted - request access from the depositors."
+    licence: CC BY 4.0
+    images: 326
+    boxes: 784
+    conditions: field
+    annotation: bbox
+
+  tom2024:
+    tier: fruit
+    role: field_burkina
+    source: mendeley
+    mendeley_id: 3d4yg89rtr
+    version: 1
+    licence: CC BY 4.0
+    images: 5520             # tomato subset, approx.
+    tomato_classes: 14
+    conditions: field
+    annotation: image_label
+    notes:
+      - "Rare but valuable classes: blossom-end rot (118), sunburn (51), N-excess (43)."
+      - "The only public source of tomato abiotic disorders found."
+    caveats: ["Extreme imbalance: Tuta absoluta n=19, fusarium n=18."]
+
+  laboro_tomato:
+    tier: fruit
+    role: ripeness
+    source: github
+    repo: laboroai/LaboroTomato
+    branch: master
+    licence: CC BY-NC-SA 4.0
+    images: 804
+    instances: 9777
+    conditions: farm
+    annotation: coco_instance_mask
+    notes: ["Ripeness, NOT disease. Use for the fruit branch framed as maturity detection."]
+
+  eight_tomato_pests:
+    tier: fruit
+    role: pest
+    source: mendeley
+    mendeley_id: s62zm6djd2
+    version: 1
+    licence: CC BY 4.0
+    images: 609              # raw; 4263 augmented
+    classes: 8
+    conditions: web
+    annotation: image_label

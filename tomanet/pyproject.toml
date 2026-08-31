@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tomanet"
+version = "0.1.0"
+description = "A shared block family for tomato leaf disease classification and detection"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["tomanet"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

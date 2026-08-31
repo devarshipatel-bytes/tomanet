@@ -1,0 +1,108 @@
+\section{Experimental Plan}
+\label{sec:experiments}
+
+\subsection{Gap-to-experiment mapping}
+\begin{table}[H]
+\centering\small
+\caption{Every gap claimed in the research-gap slide is tied to a measurable experiment or explicitly dropped.}\label{tab:gap_map}
+\begin{tabular}{@{}L{4.6cm}L{6.2cm}L{4.4cm}@{}}
+\toprule
+Claimed gap & Experiment in this plan & Metric \\
+\midrule
+Lab-only data; accuracy drop in the field & E3 cross-dataset matrix; background-swap test & $\Delta$ macro-F1, mAP gap \\
+Class imbalance & class-balanced loss + resampling ablation on Tomato-Village and Custom & macro-F1 vs accuracy gap, per-class F1 \\
+Multiple diseases on one leaf & detection on Tomato-Village / Custom (multi-box, multi-class) & per-image multi-label F1 \\
+No lesion localisation & \modeldet{} boxes; saliency IoU & mAP, AP$_s$, saliency IoU \\
+Severity not measured & scoped: lesion-area ratio inside boxes via SAM / colour clustering on a 300-image mask subset & Pearson $r$, MAE \\
+Unknown / unseen disease & E5 anomaly + open-set (hold out 2 classes) & AUROC, FPR@95 \\
+Explainability qualitative only & E6 quantitative XAI & PG, energy-PG, deletion AUC \\
+Fruit ``disease'' & scoped to ripeness / maturity detection on LaboroTomato + Kaggle fruit; disorders only if annotated & mAP \\
+Temporal progression & \textbf{dropped} -- no time-series data & -- \\
+Pests & only if the Custom set contains annotated pest classes & mAP \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data protocol}
+\label{sec:data_protocol}
+\begin{enumerate}
+  \item \textbf{Deduplicate} every dataset with perceptual hashing (pHash, Hamming $\le 6$); PlantVillage and its Kaggle derivatives contain near-duplicates and augmented copies, which leak across splits. Report how many were removed.
+  \item \textbf{Splits}: stratified 70/15/15 (train/val/test) per dataset, fixed by seed 0, released as file lists. Model selection on val only; test touched once per final model.
+  \item \textbf{Label harmonisation}: one canonical tomato class vocabulary (Table~\ref{tab:classes}) with a mapping from every dataset's class names; classes absent from a dataset are marked so cross-dataset tests only score shared classes.
+  \item \textbf{Unlabelled pool} for SSL: union of all training images of all datasets plus unannotated Custom images, labels discarded. No test image may enter the pool.
+\end{enumerate}
+
+\begin{table}[H]
+\centering\small
+\caption{Canonical class vocabulary (tomato leaf). Extend as datasets require.}\label{tab:classes}
+\begin{tabular}{@{}llll@{}}
+\toprule
+ID & Canonical class & Pathogen type & Typical lesion size \\
+\midrule
+0 & Healthy & -- & -- \\
+1 & Bacterial spot (\emph{Xanthomonas} spp.) & bacterial & small (1--3 mm) \\
+2 & Early blight (\emph{Alternaria solani}) & fungal & medium, concentric rings \\
+3 & Late blight (\emph{Phytophthora infestans}) & oomycete & large, water-soaked \\
+4 & Leaf mold (\emph{Passalora fulva}) & fungal & diffuse, underside \\
+5 & Septoria leaf spot & fungal & small, many \\
+6 & Two-spotted spider mite & pest damage & stippling, whole-leaf \\
+7 & Target spot (\emph{Corynespora}) & fungal & medium, bullseye \\
+8 & Yellow leaf curl virus (TYLCV) & viral & whole-leaf (curl, yellowing) \\
+9 & Mosaic virus (ToMV) & viral & whole-leaf mottling \\
+10+ & Powdery mildew, leaf miner, nutrient deficiency, \dots & as present in field sets & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Custom North-Gujarat dataset: what to do with it}
+\label{sec:custom_dataset}
+This is the project's most valuable asset. Minimum documentation for publication (dataset card): location and dates, crop variety, growth stage, camera/phone models, distance and lighting, number of plants/fields, class list with agronomist confirmation, annotation tool (CVAT / Label Studio / Roboflow), annotation protocol (box around each lesion cluster vs.\ whole leaf), number of annotators and inter-annotator agreement (box IoU $\ge 0.5$ agreement rate, Cohen's $\kappa$ for class), split lists, licence (CC BY 4.0). Target: all 3\,153 images with image-level labels; $\ge 1\,500$ with boxes; $\ge 300$ with lesion polygons (for severity and XAI). Release on Zenodo with a DOI; cite it as a contribution.
+
+\subsection{Experiments}
+\begin{description}[style=nextline]
+  \item[E1 -- In-domain classification.] All Table~\ref{tab:cls_baselines} models + \modelcls{} on PlantVillage-tomato, Taiwan, Tomato-Village (cls split), Custom. 5 seeds. Expected outcome: everything $\ge 99\%$ on PlantVillage (saturated); differences appear on field sets.
+  \item[E2 -- In-domain detection.] Table~\ref{tab:det_baselines} models + \modeldet{} on Tomato-Village (det), PlantDoc-tomato boxes, Custom. 3 seeds. Report AP$_s$ separately.
+  \item[E3 -- Cross-domain.] Train on $X$, test on $Y$ for all dataset pairs; both tasks. The key figure of the paper is the heat-map of generalisation gaps, with \model{} vs.\ the best baseline.
+  \item[E4 -- Label efficiency / SSL.] Trunk pre-trained by DINO (or MAE) on the unlabelled pool; fine-tune with 1/5/10/25/100\% labels; compare to ImageNet init and scratch. Both tasks.
+  \item[E5 -- Unknown-disease flagging.] Hold out 2 classes (e.g.\ target spot, mosaic) from training; PatchCore-style memory bank on frozen trunk features of healthy + known classes; AUROC for detecting held-out classes at test time. Compare with max-softmax, energy score, and a plain healthy-only autoencoder.
+  \item[E6 -- Quantitative XAI.] Saliency metrics of \S\ref{sec:metrics} on the lesion-mask subset for \modelcls{}, \modeldet{}, DenseNet121, YOLOv8. Sanity check with randomised weights.
+  \item[E7 -- Efficiency.] Latency/FPS/size on GPU, CPU, and one edge device; accuracy-vs-latency Pareto plot with all models.
+  \item[E8 -- Ablations.] Abl-1..8 from \S\ref{sec:model}, on Tomato-Village (det) and Taiwan (cls), 3 seeds.
+\end{description}
+
+\subsection{Training recipes (fixed across models)}
+\begin{itemize}
+  \item \textbf{Classification} (\texttt{timm}-style): AdamW, lr $1\times10^{-3}\times\frac{\text{batch}}{256}$ , weight decay 0.05, cosine schedule, 5 warm-up epochs, 100 epochs, label smoothing 0.1, RandAugment (m9,n2), Mixup 0.2 / CutMix 1.0, random-resized-crop (scale 0.35--1), horizontal + vertical flip, colour jitter 0.3, EMA 0.9998, AMP, batch 64--128 at 224 px. Early stop on val macro-F1, patience 15.
+  \item \textbf{Detection} (Ultralytics defaults): SGD lr0 0.01, momentum 0.937, wd $5\times10^{-4}$, warm-up 3 epochs, cosine, 200 epochs, mosaic 1.0 (closed for the last 10 epochs), mixup 0.1, HSV jitter, flips, scale 0.5, imgsz 640, batch 16--32, EMA, AMP. Early stop on val mAP@[0.5:0.95], patience 30.
+  \item \textbf{SSL} (DINO, ViT-free version on the CNN trunk, as in solo-learn): 300 epochs on the pool, multi-crop $2\times224 + 6\times96$, AdamW, batch 128, teacher momentum 0.996$\to$1. Alternative if compute-bound: MoCo-v3 / SimCLR 200 epochs.
+\end{itemize}
+
+\subsection{Compute budget (single 12\,GB GPU, e.g.\ RTX 3060/4070)}
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Item & Runs & GPU-h / run (approx.) & Total GPU-h \\
+\midrule
+E1 classification: 16 models $\times$ 4 datasets $\times$ 5 seeds & 320 & 0.5--1.5 & $\approx$300 \\
+E2 detection: 12 models $\times$ 3 datasets $\times$ 3 seeds & 108 & 2--6 & $\approx$400 \\
+E3 cross-domain (evaluation only) & -- & -- & $\approx$10 \\
+E4 SSL pre-training + 5 label fractions $\times$ 2 tasks $\times$ 3 seeds & 1 + 30 & 40 + 1 & $\approx$80 \\
+E5 anomaly (feature extraction + memory bank) & 10 & 0.5 & 5 \\
+E6 XAI & -- & -- & 5 \\
+E8 ablations: 8 $\times$ 2 tasks $\times$ 3 seeds & 48 & 1--4 & $\approx$120 \\
+\midrule
+\multicolumn{3}{@{}l}{\textbf{Total}} & $\approx$900 GPU-h $\approx$ 6 weeks of continuous single-GPU time \\
+\bottomrule
+\end{tabular}
+\end{center}
+If this is too much, cut seeds to 3 for E1/E2 and drop the ``m'' scale; that halves it.
+
+\subsection{Timeline (indicative)}
+\begin{enumerate}
+  \item Weeks 1--2: download, deduplicate, harmonise labels, publish split files; write dataset card and start box annotation of the Custom set.
+  \item Weeks 3--4: implement \textsc{TomaBlock} + both YAMLs in Ultralytics; unit tests; param/FLOP table.
+  \item Weeks 5--8: E1, E2 (baselines run in the background while annotation continues).
+  \item Weeks 9--10: E4 SSL pre-training and label-efficiency.
+  \item Weeks 11--12: E3, E5, E6, E7, E8.
+  \item Weeks 13--14: figures, statistics, writing; dataset release.
+\end{enumerate}

@@ -1,0 +1,56 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{microtype}
+\usepackage{url}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black,breaklinks=true}
+\setlist{nosep,leftmargin=*}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\ok}{\textcolor{green!50!black}{\checkmark}}
+\newcommand{\bad}{\textcolor{red!70!black}{\texttt{X}}}
+\newcommand{\todo}[1]{\textcolor{red}{[#1]}}
+\newcommand{\model}{\textsc{TomaNet}}
+\newcommand{\modelcls}{\textsc{TomaNet-C}}
+\newcommand{\modeldet}{\textsc{TomaNet-D}}
+\usepackage{amsthm}
+
+\title{\textbf{Tomato Leaf Disease Recognition: Research Audit, State of the Field (2026), Datasets, and a Proposed Unified Classification--Detection Pipeline}\\[4pt]
+\large Working research plan}
+\author{Prepared for the tomato disease detection research project}
+\date{30 August 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\input{sections/01_summary}
+\input{sections/02_audit}
+\input{sections/03_sota}
+\input{sections/04_datasets}
+\input{sections/05_gaps_novelty}
+\input{sections/06_pipeline}
+\input{sections/07_model}
+\input{sections/08_unsupervised}
+\input{sections/09_baselines}
+\input{sections/10_metrics}
+\input{sections/11_experiments}
+\input{sections/12_risks}
+\input{sections/99_refs}
+
+\end{document}

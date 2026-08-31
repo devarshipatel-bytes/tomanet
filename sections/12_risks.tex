@@ -1,0 +1,14 @@
+\section{Risks and Mitigations}
+\label{sec:risks}
+\begin{tabular}{@{}L{5.2cm}L{10.8cm}@{}}
+\toprule
+Risk & Mitigation \\
+\midrule
+\model{} does not beat YOLO11/12 or ConvNeXt in-domain. & Likely on PlantVillage (saturated). The paper's claim is \emph{Pareto} (accuracy at $\le 3$\,M params) and \emph{cross-domain} robustness, not in-domain SOTA. Frame it that way from the start. \\
+Custom-set annotation is slow / inconsistent. & Start now; annotate boxes only for lesion clusters; use YOLOv8 pre-labels + human correction in CVAT; measure agreement on a 100-image overlap. \\
+SSL gives no gain over ImageNet init. & Report it honestly -- a negative label-efficiency result on a 50k-image pool is itself informative; the anomaly-detection track still uses the features. \\
+Grad-CAM metrics need masks that do not exist. & 300 polygon annotations $\approx$ 2 person-days; alternatively use PlantSeg tomato masks if licence permits. \\
+Compute. & Scale ``n'' only for baselines-vs-ours full grid; ``s'' only for headline datasets. \\
+Public datasets have licence restrictions (e.g.\ Kaggle re-uploads without licence). & Use original sources (PlantVillage GitHub / Mendeley / Zenodo); record licence per dataset in the card. \\
+\bottomrule
+\end{tabular}

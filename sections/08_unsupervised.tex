@@ -1,0 +1,51 @@
+\section{Unsupervised and Self-Supervised Track}
+\label{sec:unsup}
+
+\subsection{Direct answer: is unsupervised learning suitable here?}
+Partly. The evidence from 2021--2026 splits cleanly into four verdicts.
+
+\begin{center}\small
+\begin{tabular}{@{}L{3.4cm}L{1.7cm}L{10.2cm}@{}}
+\toprule
+Approach & Verdict & Evidence \\
+\midrule
+Self-supervised \emph{pre-training}, then fine-tune with few labels & \textbf{Use it} & Domain SSL on only 3\,000 unlabelled agricultural images beats ImageNet-21k supervised transfer ($+7.90$ vs $+5.55$ over random init); gain grows with pool size: 500 imgs $+1.56$, 1k $+2.78$, 2k $+4.00$, 3k $+4.57$~\cite{sonavane2026}. PlantCLR (SimCLR + ConvNeXt-T) 99.10\% PV / 96.83\% field cassava~\cite{plantclr}. Frozen DINOv2 linear probe $\approx$97\% on leaf disease, consistently $>$ ImageNet-1k pre-training~\cite{espejo2025}. \\
+Healthy-only \emph{anomaly detection} for unknown disease & \textbf{Use it} & Colour-reconstructability (pix2pix + CIEDE2000) AUROC \textbf{0.99} on PV potato trained on 76 healthy leaves; AnoGAN 0.97, OC-SVM 0.95, AE-SSIM 0.94~\cite{katafuchi2021}. VQ-VAE 0.983 (cherry) / 0.936 (pepper)~\cite{calabro2022}. Healthy-ID vs diseased-OOD on PV: AUROC 99.6--99.85, FPR95 0.71--1.68~\cite{dong2025}. \\
+Semi-supervised (pseudo-label, Mean Teacher, FixMatch) & \textbf{Use it, modestly} & Mean Teacher 88.50\% with \textbf{5\%} labels on 38-class PV~\cite{ilsever2024}; AaSSL $+1.7$ to $+3.4$\,pp over supervised at 5--20\% labels, $<1$\,pp at $\ge$50\%~\cite{aassl2025}. On tomato specifically only one weak result exists: TOM-SSL 72.51\% at 10\% labels (PV-tomato), 70.87\% (Taiwan)~\cite{tomssl2025} -- a low bar. \\
+Unsupervised \emph{clustering} to recover disease classes & \textbf{Do not} & Raw ResNet-50 $k$-means on PV apple+grape (8 classes): NMI 0.272, purity 0.396. The best specialised method (CIKICS) reaches NMI 0.636 / purity 0.683 / F1 0.835~\cite{cikics}; on citrus only NMI 0.331. Clusters follow species, colour and lighting, not pathology; early blight / Septoria / target spot merge. Use clustering only for pre-annotation and active-learning proposals. \\
+Fully unsupervised domain adaptation lab$\to$field & \textbf{Not alone} & Tomato is the \emph{worst} target in the UDA literature: MSUN reaches 50.58\% on tomato (vs 96.78\% on corn), from a 41.81\% source-only baseline~\cite{msun2023}. Ten labelled field images per disease with metric-based few-shot DA gives $+11.1$ to $+29.3$ F1~\cite{fmda2024} -- far better than any unsupervised method. CycleGAN field$\to$lab translation reaches F1 95.6 but only by translating field images into lab style at inference~\cite{cho2023}. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{What the literature has \emph{not} done on tomato (the openings)}
+These are verified absences, each cheap to fill and each a defensible contribution:
+\begin{enumerate}[label=U\arabic*]
+  \item \label{u1} \textbf{No label-efficiency curve for any SSL method on tomato.} Every plant-SSL paper found fine-tunes with 100\% of labels. A 1/5/10/25/100\% curve on PV-tomato \emph{and} on field tomato, with SSL vs ImageNet vs scratch, does not exist.
+  \item \label{u2} \textbf{No modern anomaly-detection benchmark on tomato.} PatchCore, PaDiM, SimpleNet, DRAEM and reverse distillation have never been reported on tomato healthy$\to$diseased. Only potato (0.99) and cherry/pepper (0.98/0.94) exist.
+  \item \label{u3} \textbf{No NMI/ARI/purity on the 10-class PV-tomato subset.} CIKICS covered apple/grape/peach/strawberry/citrus; the one tomato clustering paper used 300 images, 3 classes, and reported only internal indices (silhouette 0.273)~\cite{wdmtsne}.
+  \item \label{u4} \textbf{No leave-one-disease-out open-set benchmark on tomato.} Existing tomato OOD work is the easy setting (healthy = in-distribution, any disease = OOD) or open-vocabulary detection~\cite{pdcvld}. ``9 diseases known, 1 held out'' with AUROC/FPR95 is unreported.
+  \item \label{u5} \textbf{No frozen DINOv2/v3 $k$-NN or linear-probe number on tomato}, despite it being the cheapest possible baseline.
+  \item \label{u6} \textbf{Unsupervised lesion-ratio severity on tomato is never validated against expert scores} with concordance $\rho_c$ or $R^2$, although tomato severity ground truth exists (bacterial spot, 150 leaves, raters $\rho_c$ 0.83$\to$0.96 with standard area diagrams~\cite{sad2015}).
+\end{enumerate}
+
+\subsection{Track U1 -- Self-supervised pre-training (feeds E4)}
+\begin{itemize}
+  \item \textbf{Pool}: union of all training images from every dataset in \S\ref{sec:datasets} plus unannotated Custom images, labels discarded ($\approx$40--60k images). Test images excluded by hash.
+  \item \textbf{Method}: DINO (multi-crop $2\times224 + 6\times96$, teacher momentum $0.996\to1$, 300 epochs) on the \model{} trunk. Fallback if compute-bound: SimCLR/MoCo-v3, 200 epochs. Note that~\cite{sonavane2026} obtained $+4.57$\,pp from only 3\,000 images, so the pool size here is comfortable.
+  \item \textbf{Evaluation}: $k$-NN ($k{=}20$, cosine, $T{=}0.07$) and linear probe on frozen features, then the label-efficiency curve of~\ref{u1} at 1/5/10/25/100\% labels $\times$ 3 seeds, for \emph{both} classification and detection (detection uses the SSL trunk as initialisation).
+  \item \textbf{Reference points to beat}: TOM-SSL 72.51\% at 10\% labels on PV-tomato~\cite{tomssl2025}; Mean Teacher 88.50\% at 5\% labels on 38-class PV~\cite{ilsever2024}; frozen DINOv2 linear probe (run it -- it is one afternoon of compute and currently unpublished for tomato,~\ref{u5}).
+\end{itemize}
+
+\subsection{Track U2 -- Unknown-disease flagging (feeds E5)}
+Two settings, both trained \emph{without} labels for the target condition:
+\begin{enumerate}
+  \item \textbf{Healthy-only anomaly detection.} Memory-bank (PatchCore) over frozen \model{} trunk features of healthy leaves only; score = distance to the bank. Compare against PaDiM, an autoencoder and the colour-reconstructability baseline~\cite{katafuchi2021}. Report image-level AUROC/AUPR/FPR95 on lab images \emph{and} on field images -- the expected result is a large drop on field backgrounds (pepper already shows 0.936 vs cherry 0.983), and documenting that drop is itself the finding.
+  \item \textbf{Leave-one-disease-out open set} (\ref{u4}). Train on 9 classes, hold out 1; score with (a) max-softmax, (b) energy, (c) PatchCore distance, (d) Mahalanobis on trunk features. Rotate the held-out class over all 10; report mean AUROC/FPR95 per held-out disease. Expect max-softmax to be weak -- OpenMax reached only 0.812 AUROC / 70.1\% accuracy on strawberry, while outlier-exposure and energy/VPT tuning reached 0.972 and 94--98~\cite{openmatch2022,dong2024}.
+\end{enumerate}
+
+\subsection{Track U3 -- Severity as lesion-area ratio (scoped)}
+Inside each predicted box: SAM-2 (prompted with the box) for the leaf mask, then $k$-means in Lab colour space \emph{inside} the mask for lesion pixels; severity $= |\text{lesion}| / |\text{leaf}|$. Validate against the 300-image polygon subset (Pearson $r$, MAE) and, if an agronomist can score them, against ordinal severity classes (weighted $\kappa$), which would close~\ref{u6}. Two documented cautions: vanilla SAM is poor at \emph{lesions} directly (adapters add $+41$ Dice~\cite{samadapter}; zero-shot leaf recall 63.2 vs 78.7 for trained Mask R-CNN~\cite{leafonlysam}), so SAM is used for the \emph{leaf} mask only; and colour-ratio severity is meaningless for TYLCV, mosaic and mite damage, which have no discrete lesions -- severity is therefore reported only for the four lesion-forming classes (early blight, late blight, Septoria, target spot) and explicitly declared not applicable elsewhere.
+
+\subsection{What is deliberately \emph{not} attempted}
+Fully unsupervised lab$\to$field adaptation as a headline result (best published tomato number is 50.58\%); clustering as a substitute for labels; unsupervised discovery of new disease \emph{classes} (only flagging that something is unknown). These are stated as limitations rather than quietly omitted.

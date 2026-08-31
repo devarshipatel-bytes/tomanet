@@ -1,0 +1,43 @@
+# TomaNet-D - detection. Backbone layers 0-8 are byte-identical to tomanet-cls.yaml.
+# Usage: from tomanet.register import register; register()
+#        YOLO("configs/models/tomanet-det.yaml")
+
+nc: 10
+
+scales: # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]
+  s: [0.50, 0.50, 1024]
+  m: [1.00, 0.75, 768]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [64, 3, 2]] # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 1-P2/4
+  - [-1, 2, TomaLayer, [128, 3]] # 2
+  - [-1, 1, Conv, [256, 3, 2]] # 3-P3/8
+  - [-1, 4, TomaLayer, [256, 3]] # 4
+  - [-1, 1, Conv, [512, 3, 2]] # 5-P4/16
+  - [-1, 4, TomaLayer, [512, 5]] # 6
+  - [-1, 1, Conv, [1024, 3, 2]] # 7-P5/32
+  - [-1, 2, TomaLayer, [1024, 5]] # 8
+
+head:
+  - [-1, 1, SPPF, [1024, 5]] # 9
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 10
+  - [[-1, 6], 1, Concat, [1]] # 11 cat P4
+  - [-1, 2, TomaLayer, [512, 3]] # 12
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13
+  - [[-1, 4], 1, Concat, [1]] # 14 cat P3
+  - [-1, 2, TomaLayer, [256, 3]] # 15 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]] # 16
+  - [[-1, 12], 1, Concat, [1]] # 17 cat head P4
+  - [-1, 2, TomaLayer, [512, 3]] # 18 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]] # 19
+  - [[-1, 9], 1, Concat, [1]] # 20 cat head P5
+  - [-1, 2, TomaLayer, [1024, 5]] # 21 (P5/32-large)
+
+  - [[15, 18, 21], 1, Detect, [nc]] # 22

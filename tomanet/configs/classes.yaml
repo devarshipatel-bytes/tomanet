@@ -1,0 +1,96 @@
+# Canonical tomato class vocabulary and per-dataset mapping.
+#
+# Cross-dataset evaluation only scores classes present in BOTH datasets. `shared_with`
+# is computed by scripts/dedup.py --report, not hand-maintained.
+#
+# Mappings marked `verified: true` were checked against the extracted directory tree.
+# The rest are from documentation and must be confirmed after download.
+
+canonical:
+  0: healthy
+  1: bacterial_spot          # Xanthomonas spp.       - small 1-3 mm, lesion-forming
+  2: early_blight            # Alternaria solani      - concentric rings, lesion-forming
+  3: late_blight             # Phytophthora infestans - water-soaked, lesion-forming
+  4: leaf_mold               # Passalora fulva        - diffuse, underside
+  5: septoria_leaf_spot      #                        - many small, lesion-forming
+  6: spider_mites            # pest damage            - stippling, whole-leaf
+  7: target_spot             # Corynespora            - bullseye, lesion-forming
+  8: yellow_leaf_curl_virus  # TYLCV                  - whole-leaf, no discrete lesion
+  9: mosaic_virus            # ToMV                   - whole-leaf, no discrete lesion
+  # field-only classes, absent from PlantVillage
+  10: powdery_mildew
+  11: leaf_miner
+  12: gray_spot
+  13: black_mold
+  14: spotted_wilt_virus
+  15: nutrient_deficiency    # abiotic
+  16: leaf_blight
+  17: verticillium_wilt
+
+# Severity by lesion-area ratio is only meaningful for discrete lesions.
+# See main.pdf section 8.5 - do not report severity for the others.
+severity_applicable: [early_blight, late_blight, septoria_leaf_spot, target_spot]
+
+mapping:
+
+  plantvillage:
+    verified: false
+    prefix: "Tomato___"
+    classes:
+      Tomato___healthy: healthy
+      Tomato___Bacterial_spot: bacterial_spot
+      Tomato___Early_blight: early_blight
+      Tomato___Late_blight: late_blight
+      Tomato___Leaf_Mold: leaf_mold
+      Tomato___Septoria_leaf_spot: septoria_leaf_spot
+      Tomato___Spider_mites Two-spotted_spider_mite: spider_mites
+      Tomato___Target_Spot: target_spot
+      Tomato___Tomato_Yellow_Leaf_Curl_Virus: yellow_leaf_curl_virus
+      Tomato___Tomato_mosaic_virus: mosaic_virus
+
+  taiwan:
+    verified: true            # checked against Preprocessed data/Train/
+    root: "taiwan/Preprocessed data"
+    classes:
+      "health": healthy
+      "Bacterial spot": bacterial_spot
+      "Late blight": late_blight
+      "Black mold": black_mold
+      "Gray spot": gray_spot
+      "powdery mildew": powdery_mildew
+    notes:
+      - "Only bacterial_spot, late_blight and healthy overlap with PlantVillage."
+      - "Cross-domain PlantVillage->Taiwan therefore scores 3 shared classes only."
+
+  plantdoc:
+    verified: false
+    classes:
+      Tomato leaf: healthy
+      Tomato Early blight leaf: early_blight
+      Tomato leaf late blight: late_blight
+      Tomato Septoria leaf spot: septoria_leaf_spot
+      Tomato leaf bacterial spot: bacterial_spot
+      Tomato leaf mosaic virus: mosaic_virus
+      Tomato leaf yellow virus: yellow_leaf_curl_virus
+      Tomato mold leaf: leaf_mold
+      Tomato two spotted spider mites leaf: spider_mites
+
+  tomato_village:
+    verified: false
+    classes:
+      healthy: healthy
+      early_blight: early_blight
+      late_blight: late_blight
+      leaf_mold: leaf_mold
+      leaf_miner: leaf_miner
+      spotted_wilt_virus: spotted_wilt_virus
+      nutrition_deficiency: nutrient_deficiency
+
+  ccmt:
+    verified: false
+    classes:
+      healthy: healthy
+      leaf_blight: leaf_blight
+      leaf_curl: yellow_leaf_curl_virus
+      septoria_leaf_spot: septoria_leaf_spot
+      verticillium_wilt: verticillium_wilt

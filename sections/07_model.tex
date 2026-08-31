@@ -1,0 +1,99 @@
+\section{Proposed Custom Model: \model}
+\label{sec:model}
+
+\subsection{Design requirements}
+\begin{enumerate}
+  \item One block definition (\textsc{TomaBlock}) reused, without modification, in the classifier trunk, the detector trunk \emph{and} the detector neck.
+  \item Two architectures built from it: \modelcls{} (image classification, 224--256 px input) and \modeldet{} (object detection, 640 px input). Same stem and stage layout, so a trunk pre-trained for one task initialises the other.
+  \item Budget: $\le 5$\,M parameters and $\le 10$ GFLOPs at 640 px for the ``n'' scale, so training fits on one 8--12\,GB GPU and inference runs on a phone / Jetson.
+  \item Every architectural choice is justified by a small-lesion or field-image argument and gets an ablation row.
+\end{enumerate}
+
+\subsection{\textsc{TomaBlock}}
+\label{sec:block}
+Input $X\in\mathbb{R}^{C\times H\times W}$, expansion ratio $e{=}2$, partial ratio $r{=}1/4$.
+\begin{align}
+X_1 &= \mathrm{PConv}_{3\times3}(X;\, r) && \text{spatial mixing on $rC$ channels only (FasterNet)}\\
+X_2 &= \sigma(\mathrm{BN}(\mathrm{Conv}_{1\times1}(X_1;\, C\!\to\! eC))) && \text{expand}\\
+X_3 &= \mathrm{DWConv}_{k\times k}(X_2) \;\; (k{=}3 \text{ in stages 1--2},\, 5 \text{ in stages 3--4}) && \text{large-kernel context}\\
+X_4 &= \mathrm{CA}(X_3) && \text{coordinate attention (H- and W-wise pooling)}\\
+Y &= X + \mathrm{BN}(\mathrm{Conv}_{1\times1}(X_4;\, eC\!\to\! C)) && \text{project + residual}
+\end{align}
+with $\sigma=$ SiLU. At training time the $3\times3$ PConv has a parallel $1\times1$ branch and an identity branch (RepVGG style); the three are fused into a single $3\times3$ kernel for inference. Rationale:
+\begin{itemize}
+  \item \textbf{PConv} keeps FLOPs and \emph{memory access} low (the real bottleneck on edge devices), unlike depthwise-only designs.
+  \item \textbf{Depthwise $5\times5$ in deep stages} gives lesion-scale receptive field growth without extra parameters (ConvNeXt finding).
+  \item \textbf{Coordinate attention} encodes position along $H$ and $W$; lesions are small, position-specific, and easily lost by channel-only SE/ECA. CA is cheap ($\sim$2\% params).
+  \item \textbf{Re-parameterisation} gives multi-branch training accuracy at single-branch inference cost.
+\end{itemize}
+A stage is $n_i$ \textsc{TomaBlock}s preceded by a stride-2 $3\times3$ conv (downsample). A \textsc{TomaStage}$(C_i, n_i)$ therefore has a single hyper-parameter pair per stage.
+
+\subsection{Trunk (shared)}
+\begin{center}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Scale & Stem ch. & $C_1..C_4$ & $n_1..n_4$ & Params (trunk, approx.) & Output strides \\
+\midrule
+n & 16 & 32, 64, 128, 256 & 1, 2, 2, 1 & $\approx$1.1\,M & 4, 8, 16, 32 \\
+s & 32 & 64, 128, 256, 512 & 1, 2, 2, 1 & $\approx$4.3\,M & 4, 8, 16, 32 \\
+m & 48 & 96, 192, 384, 576 & 2, 4, 4, 2 & $\approx$11\,M & 4, 8, 16, 32 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Stem: two $3\times3$ stride-2 convs (like YOLOv8), i.e.\ stride 4 before stage~1. Parameter counts are estimates from the block formula and must be replaced by \texttt{thop}/\texttt{fvcore} measurements once implemented (\S\ref{sec:impl}).
+
+\subsection{\modelcls{} -- classification architecture}
+\[
+\text{Stem} \to \text{S}_1 \to \text{S}_2 \to \text{S}_3 \to \text{S}_4 \to \mathrm{Conv}_{1\times1}(C_4\!\to\!1280) \to \mathrm{GAP} \to \mathrm{Dropout}(0.2) \to \mathrm{FC}(1280\!\to\!K)
+\]
+This is exactly the Ultralytics \texttt{Classify} head (\texttt{Conv(c1,1280,1)} $\to$ \texttt{AdaptiveAvgPool2d} $\to$ \texttt{Dropout} $\to$ \texttt{Linear}), so the YAML for \modelcls{} is the shared backbone list plus one \texttt{Classify} line -- the same pattern Ultralytics uses for \texttt{yolo11.yaml} vs.\ \texttt{yolo11-cls.yaml}, whose backbone lists are byte-identical.
+Input 224 px for parity with ImageNet-pretrained baselines; 256 px variant for PlantVillage native resolution. $K=10$ (PlantVillage tomato) or dataset-specific. The $1\times1$ expansion before pooling follows MobileNetV3 and costs almost nothing at $7\times7$ resolution. Loss: cross-entropy with label smoothing 0.1; class-balanced (effective-number) weights when the imbalance ratio exceeds 5.
+
+\subsection{\modeldet{} -- detection architecture}
+\begin{itemize}
+  \item \textbf{Backbone}: same stem + S$_1$..S$_4$; export P2 (stride 4), P3 (8), P4 (16), P5 (32). SPPF on P5.
+  \item \textbf{Neck}: PAFPN (top-down + bottom-up) in which every fusion node is a \textsc{TomaBlock} (replacing YOLOv8's C2f). A \emph{P2 head is optional} and ablated: lesions on a 640-px field image are frequently $<16$ px, i.e.\ below one P3 cell.
+  \item \textbf{Head}: anchor-free decoupled head (separate cls / reg branches) with Distribution Focal Loss (DFL, 16 bins) for box regression, exactly as in YOLOv8, so that Ultralytics' Task-Aligned Assigner and mAP evaluation can be reused unchanged.
+  \item \textbf{Losses}: $\mathcal{L} = \lambda_{cls}\,\mathrm{BCE} + \lambda_{box}\,\mathcal{L}_{IoU} + \lambda_{dfl}\,\mathrm{DFL}$ with default weights $(0.5, 7.5, 1.5)$. $\mathcal{L}_{IoU}\in\{\text{CIoU},\text{WIoU-v3},\text{MPDIoU}\}$ is an ablation; recent small-object papers favour WIoU/MPDIoU; the plan starts from CIoU (the default) and only adopts an alternative if it wins on the validation split.
+  \item \textbf{Post-processing}: standard NMS (IoU 0.7, conf 0.25 for reporting P/R/F1; conf 0.001 for mAP). Multi-label per leaf is handled natively: several boxes of different classes on one leaf. An NMS-free variant (YOLOv10-style dual assignment: one-to-many TAL top-$k{=}10$ + one-to-one top-$k{=}1$ head, \texttt{end2end=True} in the \texttt{Detect} head) is a cheap optional ablation because Ultralytics already implements it.
+  \item \textbf{Loss caution}: recent agricultural papers report $+0.5$ to $+2$ mAP@0.5 from WIoU/MPDIoU/Inner-IoU/NWD, almost always single-dataset and single-seed -- within typical seed variance ($\approx$0.3--0.5 mAP). Only CIoU/DIoU/GIoU are switchable in Ultralytics; others require patching \texttt{BboxLoss.forward}. Ablate with $\ge3$ seeds before claiming anything.
+\end{itemize}
+
+\subsection{Weight-sharing and the transfer chain}
+\label{sec:transfer_chain}
+\begin{center}
+\begin{tikzpicture}[node distance=6mm and 10mm, every node/.style={draw,rounded corners,align=center,font=\small,minimum height=8mm}]
+\node (ssl) {SSL pre-training\\ trunk only, unlabelled pool};
+\node (cls) [right=of ssl] {\modelcls\\ fine-tune (labels)};
+\node (det) [right=of cls] {\modeldet\\ trunk init from \modelcls};
+\node (ano) [below=of cls] {Anomaly / open-set\\ frozen trunk features};
+\draw[-{Latex}] (ssl) -- (cls);
+\draw[-{Latex}] (cls) -- (det);
+\draw[-{Latex}] (ssl) -- (ano);
+\draw[-{Latex}] (cls) -- (ano);
+\end{tikzpicture}
+\end{center}
+Three initialisations of the trunk are compared for both tasks: (a) random, (b) ImageNet-1k supervised (train \modelcls{} on ImageNet-1k for 100 epochs -- feasible at scale ``n'' in $\approx$2 GPU-days at 160 px; if not affordable, use ImageNet-100), (c) self-supervised on the pooled tomato images (\S\ref{sec:unsup}). This is the cleanest way to make the ``unsupervised'' track a measurable part of the main results rather than a side experiment.
+
+\subsection{Implementation route}
+\label{sec:impl}
+Do not write a training loop. Both tasks are implemented inside \textbf{Ultralytics 8.x}, which already supports a \texttt{classify} task (\texttt{Classify} head with GAP + FC) and a \texttt{detect} task with the TAL assigner, DFL, mosaic augmentation, EMA, AMP, mAP evaluation and export (ONNX, TensorRT, TFLite).
+\begin{enumerate}
+  \item Implement \texttt{TomaBlock}, \texttt{TomaStage}, \texttt{CoordAtt}, \texttt{PConv} in one file \texttt{ultralytics/nn/modules/toma.py}. Ultralytics has \emph{no} plugin registry (a ``Python-in-YAML'' PR was closed on security grounds), so work on an editable fork (\texttt{pip install -e .}): export the classes in \texttt{nn/modules/\_\_init\_\_.py}, import them in \texttt{nn/tasks.py}, add them to the \texttt{base\_modules} set (so $c_1,c_2$ are injected with width scaling) and to \texttt{repeat\_modules} (so the YAML \texttt{repeats} column becomes $n$). Block signature must be \texttt{(c1, c2, *args)}.
+  \item \texttt{tomanet-cls.yaml}: backbone list + \texttt{Classify} head. \texttt{tomanet-det.yaml}: same backbone list + SPPF + PAFPN of \texttt{TomaBlock} + \texttt{Detect} head. Scales \texttt{n/s/m} through the standard \texttt{scales:} dictionary (depth, width, max-channels).
+  \item Verify with \texttt{model.info()} (params, GFLOPs) and one forward pass per task; unit test: fused vs unfused block outputs agree to $10^{-4}$.
+  \item SSL pre-training uses the same trunk exported as a plain \texttt{nn.Module} into a Lightly / solo-learn DINO or MAE recipe; weights are loaded back with a key-mapping script.
+  \item FLOPs/latency: \texttt{thop} for GFLOPs, \texttt{torch.utils.benchmark} for GPU latency, ONNX Runtime for CPU latency, TensorRT-FP16 on Jetson if hardware is available.
+\end{enumerate}
+
+\subsection{Ablation list (one row each)}
+\begin{enumerate}[label=Abl-\arabic*]
+  \item Full block vs.\ block without CA vs.\ CA replaced by SE / ECA / CBAM.
+  \item PConv vs.\ full $3\times3$ conv vs.\ depthwise-only.
+  \item Rep-branch on/off.
+  \item $k=5$ in deep stages vs.\ $k=3$ everywhere.
+  \item Detector: with vs.\ without P2 head; \textsc{TomaBlock} neck vs.\ C2f neck.
+  \item Loss: CIoU vs.\ WIoU-v3 vs.\ MPDIoU.
+  \item Trunk init: scratch vs.\ ImageNet vs.\ SSL (tomato pool).
+  \item Input resolution: 224 vs.\ 256 (cls); 640 vs.\ 800 (det).
+\end{enumerate}

@@ -1,0 +1,94 @@
+\section{State of the Field (2023--2026)}
+\label{sec:sota}
+
+\subsection{Headline facts}
+\begin{enumerate}
+  \item \textbf{PlantVillage-tomato classification is solved.} 2024--2026 papers report 99.4--99.96\% (Eff-Swin 99.70\%~\cite{effswin}, MobilePlantViT 99.40\% with 0.82\,M params~\cite{hoang2026}, MobileNetV3-L 99.81\%~\cite{mnv3edge}, ViT+MoE 99.96\% on the full 38-class set~\cite{salman2025}). Differences of $<0.5$\,pp are within seed noise. A new architecture cannot be justified by PlantVillage accuracy alone.
+  \item \textbf{PlantVillage is background-biased.} A classifier that sees only 8 background pixels reaches 49\% on PlantVillage (chance 2.6\%)~\cite{noyan2022}. Mohanty et al.\ (2016): 99.35\% held-out $\to$ 31.4\% on external web images~\cite{mohanty2016}. Recent lab$\to$field numbers: ViT+MoE 99.96\% $\to$ 68--74\% on PlantDoc~\cite{salman2025}; ResNet-50 PlantVillage$\to$PlantDoc $-67.7$\,pp with mean confidence still 79.8\%~\cite{fpls2026gap}; ViT-B 99.17\% $\to$ 77.27\% on an Indian field subset~\cite{eja2025}; 99.72\% $\to$ 41.81\% (field)~\cite{yang2024}. Jelali (2024) reviewed 35 tomato studies that use \emph{only} real-field data and concludes PlantVillage-trained models ``perform poorly on real-world images''~\cite{jelali2024}.
+  \item \textbf{Detection has moved to field data and YOLO/RT-DETR variants.} A fair, single-recipe benchmark of YOLOv8--v12 (all sizes) on the Tomato-Village detection variant (6 classes, 14\,368 images after augmentation) gives YOLOv11x mAP@0.5 0.936 / mAP@[0.5:0.95] 0.790 and YOLOv12n 0.864 / 0.604 as the best nano model~\cite{ramos2025}. This is the number to beat, at the nano/small scale.
+  \item \textbf{Typical ``improved YOLO'' paper gains are small.} Attention/neck/loss tweaks report $+1$ to $+4$ mAP@0.5 on a single dataset, single seed, e.g.\ improved YOLOv8n 80.2 $\to$ 81.8 on 20\,534 Hainan field images~\cite{chen2025yolov8n}; YOLO11n $+1.3$ on 2\,212 Sanya images~\cite{meng2025}. Reviewers are increasingly sceptical of this pattern.
+  \item \textbf{Unified/multi-task models exist but are heavy.} PMJDM (ConvNeXt shared backbone, species classification + disease detection) is 49\,M params / 146\,GFLOPs~\cite{pmjdm}; multi-task disease+severity distillation~\cite{liu2024mt}; LDI-NET (type/disease/severity multi-label)~\cite{ldinet}. \emph{No lightweight ($<5$\,M) block family evaluated as both a classifier and a detector on tomato was found.}
+  \item \textbf{Explainability is qualitative.} Grad-CAM / Grad-CAM++ / LIME / SHAP / Eigen-CAM appear in many tomato papers~\cite{xsetomatonet,leafdet,gunasekaran2026}, always as figures. The only quantitative saliency-vs-lesion-mask study found is on a non-tomato dataset (DeepSHAP IoU $>85\%$)~\cite{shafik2025xai}. Pointing game, energy-based pointing game and deletion/insertion curves were \emph{not} found in any tomato paper. One 2026 paper explicitly lists lack of IoU-based heat-map scoring as a limitation~\cite{scirep2026xai}.
+  \item \textbf{Foundation models are arriving.} PlantCaFo (CLIP+DINO+DINOv2 adapters, 16-shot 93.5\% on 38-class PlantVillage)~\cite{plantcafo}; BLIP-2+LoRA with GroundingDINO/SAM-2 zero-shot leaf masking on tomato, 97.27\%, runs on Raspberry Pi~5~\cite{kaur2025}; DINOv2 LoRA $>$ ImageNet-supervised on four agri datasets~\cite{espejo2025}; AgriCLIP~\cite{agriclip}; SCOLD/LeafNet 186k image--caption pairs~\cite{scold}. For a single-GPU project these are \emph{baselines and feature extractors}, not things to re-train.
+\end{enumerate}
+
+\subsection{Representative 2024--2026 results}
+\begin{longtable}{@{}L{2.9cm}L{3.3cm}L{3.6cm}L{3.2cm}L{3.0cm}@{}}
+\caption{Selected recent tomato disease papers. n/r = not reported. Numbers as reported by the authors (single run unless stated).}\label{tab:sota}\\
+\toprule
+Ref & Model & Dataset & Headline & Params / FLOPs; limitation \\
+\midrule
+\endfirsthead
+\toprule
+Ref & Model & Dataset & Headline & Params / FLOPs; limitation \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{5}{@{}l}{\emph{Detection -- field / mixed data}}\\
+Ramos \& Sappa 2025~\cite{ramos2025} & YOLOv8--v12 benchmark & Tomato-Village det., 6 cls & v11x mAP50 0.936 / 0.790; v12n 0.864 / 0.604 & YOLO only; 4$\times$A100 \\
+Chen 2025~\cite{chen2025yolov8n} & YOLOv8n + DynamicConv, SimAM, DySample & Hainan field, 11 cls, 20\,534 & mAP50 81.8 / 66.3 & 4.4\,M / 6.9\,G; unvalidated elsewhere \\
+Meng 2025~\cite{meng2025} & YOLO11n + MSF neck & Sanya field, 9 cls, 2\,212 & mAP50 76.5 / 60.5 & 7.9\,G, 400 FPS; weak on early lesions \\
+Wang 2024~\cite{wang2024v6} & YOLOv6 + CBAM + BiRepGFPN (P2) & Roboflow tomato; PlantDoc; FieldPlant & 93.8 / PlantDoc 77.3 / FieldPlant 66.5 & P2 adds noise on FieldPlant \\
+Sun 2025~\cite{tomatoleafdet} & TomatoLeafDet (YOLOv8n + P2, SMKFA) & CCMT tomato, 5 cls & mAP50 0.945 / 0.768 & 3.35\,M / 9.8\,G \\
+Xin \& Li 2024~\cite{fchfdetr} & FCHF-DETR (RT-DETR-R18 + FasterNet) & Kaggle + own, 6 cls, 3\,147 & mAP50 97.2 / 89.1 & 16.3\,M / 47.8\,G \\
+Bian 2025~\cite{msffdetr} & MSFF-DETR & LAB/ENV 7\,626 each, 9 cls & 97.9 (lab) / 97.0 (env) & 22.3\,M / 67\,G \\
+Wang \& Liu 2025~\cite{tomatoguard} & TomatoGuard-YOLO (YOLOv10) & greenhouse IoT, 5 cls, 10\,537 & mAP50 94.2 / 72.5 & 2.65\,MB, 130 FPS \\
+Wang 2025~\cite{bedyolo} & BED-YOLO (YOLOv10n + DCN + BiFPN) & 65\% Xinjiang field + 35\% PV, 4 cls & mAP50 91.3 (base 87.4) & 3.7\,M / 9.8\,G \\
+Miao 2025~\cite{serpensgate} & SerpensGate-YOLOv8 & PlantDoc, 30 cls & mAP50 64.9 & 5.0\,M / 9.7\,G; TYLCV vs leaf-spot confusion \\
+Mostafa 2026~\cite{leafdet} & LeafDet (YOLOv8-derived) & PlantTom 8 cls, 7\,836 (PlantDoc+PV+Roboflow+FieldPlant) & mAP50 91.6 & 2.69\,M / 7.3\,G; Eigen-CAM qualitative \\
+Khan 2023~\cite{tomformer} & TomFormer (ViT+CNN) & KUTomaDATA 939; PlantDoc-tomato; PV & mAP 87 / 81 / 83 & IoU threshold not stated \\
+2026~\cite{taiwanyolo11} & YOLOv11n--DeiT + genetic HPO & Taiwan (9 cls), TLDDCV (7 cls) & Taiwan mAP50 97.8 / 93.4 & n/r \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Classification}}\\
+Salman 2025~\cite{salman2025} & ViT + MoE head & PV 38 cls; PlantDoc & 99.96\%; PlantDoc 74\%; PV$\to$PlantDoc 68\% & single label only \\
+Sun 2024~\cite{effswin} & Eff-Swin & PV tomato & 99.70\% & lab only \\
+Hoang 2026~\cite{hoang2026} & MobilePlantViT (7 nets compared) & PV-based tomato & 99.40\%, macro-F1 99.31 & 0.82\,M / 0.60\,G \\
+Gunasekaran 2026~\cite{gunasekaran2026} & DeiT-Tiny router + EfficientNet-B0 experts & PV tomato 10 cls, 14\,529 & 97.8\%, macro-F1 0.972 & 16.3\,M; Grad-CAM only \\
+Zhang \& Liu 2026~\cite{vmambaplantdoc} & Improved Vision Mamba & PlantDoc 27 cls & 92.67\%, macro-F1 91.70 & 31.4\,M; 58\% of errors inter-class \\
+Assaduzzaman 2025~\cite{xsetomatonet} & XSE-TomatoNet (EffNet-B0 + SE) & Kaggle tomato 11 cls, 32\,532 & 99.11\% & XAI qualitative \\
+Kaur 2025~\cite{kaur2025} & BLIP-2 + LoRA + GroundingDINO + SAM-2 & PV 13\,143 + 2\,000 greenhouse & 97.27\% & 2.7\,B base; RPi-5 \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Multi-task / severity / segmentation}}\\
+Fu 2025~\cite{pmjdm} & PMJDM (ConvNeXt shared; cls + det heads) & 26\,073 imgs, 5 species, 28 dis. & mAP50 61.8 & 49\,M / 146\,G \\
+Liu 2024~\cite{liu2024mt} & multi-task distillation (disease + 3-level severity) & AI Challenger + PlantDoc + Taiwan, 13\,030 & 98.9\% / 95.3\% & single-subject images \\
+Li 2025~\cite{emsam} & EMSAM (SAM + adapters) & PV segmentation, 26 cls & Dice 0.79, IoU 0.70 & 590\,M total \\
+TLD46k 2025~\cite{tld46k} & PV + CCMT + PlantDoc merged, 46\,070 imgs & TLD46k & 80.7\% acc cross-source & shows merged-source difficulty \\
+\end{longtable}
+
+\subsection{Best known numbers per field dataset (targets for E2/E3)}
+\begin{center}\small
+\begin{tabular}{@{}L{3.6cm}L{4.2cm}L{3.8cm}L{3.2cm}@{}}
+\toprule
+Dataset & Best reported & Model & Ref \\
+\midrule
+Tomato-Village (det., 6 cls) & mAP50 0.936 / 0.790 (fair benchmark); 0.864 / 0.604 nano & YOLOv11x; YOLOv12n & \cite{ramos2025} \\
+Taiwan tomato & mAP50 97.8 / 93.4; YOLOv8 baseline 77.4 on a subset & YOLOv11n--DeiT & \cite{taiwanyolo11} \\
+PlantDoc (30 cls) & mAP50 77.3 / F1 75.5; 64.9 & improved YOLOv6; SerpensGate & \cite{wang2024v6,serpensgate} \\
+PlantDoc tomato subset & mAP 81 & TomFormer & \cite{tomformer} \\
+PlantDoc (2020 baseline) & mAP $\approx$38.9 & Faster R-CNN Inception-ResNet-v2 & \cite{plantdoc} \\
+FieldPlant & mAP 66.5 & improved YOLOv6 & \cite{wang2024v6} \\
+PlantDoc classification & 92.67\% / macro-F1 91.7 & improved Vision Mamba & \cite{vmambaplantdoc} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Open problems named by 2024--2026 surveys}
+\begin{center}\small
+\begin{tabular}{@{}L{6.2cm}L{9.3cm}@{}}
+\toprule
+Problem & Surveys / evidence \\
+\midrule
+Lab$\to$field domain shift, background bias & Jelali 2024~\cite{jelali2024}; Xu 2024~\cite{xu2024}; Shoaib 2025~\cite{shoaib2025}; Ghimire 2026~\cite{ghimire2026}; Noyan 2022~\cite{noyan2022} \\
+Class imbalance, rare diseases & Ghimire 2026; Xu 2024; DM-YOLO fails on Leaf Mold / TYLCV~\cite{dmyolo} \\
+Multiple diseases per leaf & Xu 2024; Ghimire 2026; Salman 2025 (limitation); ALMDR (apple)~\cite{almdr} \\
+Severity estimation from lesion area & Xu 2024; Das 2025~\cite{das2025}; severity review~\cite{sevreview} \\
+Small / early lesions, fine-grained similarity & Shoaib 2025; Meng 2025; 58\% of PlantDoc errors are inter-class~\cite{vmambaplantdoc} \\
+Leakage, annotation noise, no standard protocol & Xu 2024 (same leaf across splits); Ghimire 2026 (asks for P/R/F1/AUROC, specimen-level splits) \\
+Few-shot / open-set / unknown disease & Dong 2024 (VPT max-logit AUROC 94.8\% 8-shot)~\cite{dong2024}; Dong 2025 (VLM ensemble AUROC 98.4, FPR95 7.05)~\cite{dong2025}; open-world prototypes~\cite{eaai2025} \\
+Edge deployment & Gunasekaran 2025 review~\cite{lightweightreview}; MobileNetV3-Small 251\,ms on RPi-4~\cite{mnv3edge} \\
+Explainability tied to pathology & Ghimire 2026; no quantitative saliency metrics on tomato \\
+Foundation models / SSL & Ghimire 2026; Shoaib 2025; Sonavane 2026 SimCLR ``data $>$ architecture''~\cite{sonavane2026}; PlantCLR~\cite{plantclr} \\
+\bottomrule
+\end{tabular}
+\end{center}
