@@ -95,9 +95,10 @@ datasets:
   ccmt:
     tier: core
     role: field_ghana
-    source: mendeley
-    mendeley_id: bwh3zbpkpv
-    version: 1
+    source: manual              # mendeley_id bwh3zbpkpv: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/bwh3zbpkpv
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 24881             # raw, all crops
     tomato_classes: 5
@@ -180,9 +181,10 @@ datasets:
   aiub_bangladesh:
     tier: extra
     role: field_bangladesh
-    source: mendeley
-    mendeley_id: bpfd9cns5g
-    version: 2
+    source: manual              # mendeley_id bpfd9cns5g: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/bpfd9cns5g
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 731
     boxes: 1621
@@ -194,9 +196,10 @@ datasets:
   daffodil_iu:
     tier: extra
     role: field_bangladesh
-    source: mendeley
-    mendeley_id: 93h9p62kg4
-    version: 1
+    source: manual              # mendeley_id 93h9p62kg4: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/93h9p62kg4
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 2600
     tomato_classes: 11
@@ -207,9 +210,10 @@ datasets:
   bangladesh_field_cls:
     tier: extra
     role: field_bangladesh
-    source: mendeley
-    mendeley_id: jttrv2w27r
-    version: 2
+    source: manual              # mendeley_id jttrv2w27r: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/jttrv2w27r
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 2995
     tomato_classes: 7
@@ -220,9 +224,10 @@ datasets:
   damage_progression:
     tier: extra
     role: severity
-    source: mendeley
-    mendeley_id: s96sc8sh6y
-    version: 1
+    source: manual              # mendeley_id s96sc8sh6y: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/s96sc8sh6y
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 8596
     boxes: 20291
@@ -236,9 +241,10 @@ datasets:
   sichuan_greenhouse:
     tier: extra
     role: greenhouse
-    source: mendeley
-    mendeley_id: c2x8rynybg
-    version: 1
+    source: manual              # mendeley_id c2x8rynybg: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/c2x8rynybg
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 1026
     tomato_classes: 3
@@ -274,9 +280,10 @@ datasets:
   tom2024:
     tier: fruit
     role: field_burkina
-    source: mendeley
-    mendeley_id: 3d4yg89rtr
-    version: 1
+    source: manual              # mendeley_id 3d4yg89rtr: files API returns an empty
+                                # listing (verified 2026-09-01) - browser download needed
+    url: https://data.mendeley.com/datasets/3d4yg89rtr
+    manual_reason: "Mendeley public files API lists no files for this record."
     licence: CC BY 4.0
     images: 5520             # tomato subset, approx.
     tomato_classes: 14

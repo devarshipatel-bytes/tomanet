@@ -154,9 +154,16 @@ def fetch_mendeley(name: str, spec: dict, target: Path) -> list[dict]:
         timeout=TIMEOUT,
     )
     listing.raise_for_status()
+    entries = listing.json()
+    if not isinstance(entries, list) or not entries:
+        raise RuntimeError(
+            f"Mendeley lists no files for {dataset_id} v{version}. Several records expose "
+            "only folders through the public API - download it from "
+            f"https://data.mendeley.com/datasets/{dataset_id} in a browser."
+        )
 
     written = []
-    for entry in listing.json():
+    for entry in entries:
         details = entry.get("content_details", {})
         url = details.get("download_url")
         if not url:
@@ -245,6 +252,10 @@ def fetch_one(name: str, spec: dict, force: bool, dry_run: bool) -> str:
         files = HANDLERS[source](name, spec, target)
     except Exception as exc:  # noqa: BLE001 - one bad dataset must not kill the run
         print(f"[FAIL]    {name}: {exc}")
+        return "fail"
+
+    if not files:
+        print(f"[FAIL]    {name}: handler returned no files - nothing downloaded")
         return "fail"
 
     write_provenance(target, spec, files)

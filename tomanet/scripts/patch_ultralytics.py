@@ -46,6 +46,10 @@ USAGE_BLOCK = """{indent}# --- TOMANET PATCH (module sets) ---
 # First line inside parse_model that reads base_modules; both frozensets exist by then.
 USAGE_ANCHOR = re.compile(r"^(\s*)(?:if\s+)?m\s+in\s+base_modules\b", re.MULTILINE)
 
+# First top-level class/def: everything above it is imports and module constants.
+# Anchoring here avoids landing inside a parenthesised multi-line import.
+TOP_LEVEL_ANCHOR = re.compile(r"^(?:class|def)\s", re.MULTILINE)
+
 
 def tasks_path() -> Path:
     try:
@@ -56,13 +60,15 @@ def tasks_path() -> Path:
 
 
 def find_import_anchor(source: str) -> int:
-    """Character offset just after the last top-level import line."""
-    last = 0
-    for match in re.finditer(r"^(?:from|import)\s+\S+.*$", source, re.MULTILINE):
-        last = max(last, match.end())
-    if last == 0:
-        sys.exit("could not locate the import block in tasks.py - patch aborted")
-    return last
+    """Character offset of the first top-level `class` or `def`.
+
+    Inserting here (rather than after the last `import` line) is safe with
+    parenthesised multi-line imports, which ultralytics uses heavily.
+    """
+    match = TOP_LEVEL_ANCHOR.search(source)
+    if not match:
+        sys.exit("could not locate a top-level class/def in tasks.py - patch aborted")
+    return match.start()
 
 
 def apply(path: Path) -> None:
@@ -82,14 +88,17 @@ def apply(path: Path) -> None:
     if not backup.exists():
         shutil.copy2(path, backup)
 
+    import_at = find_import_anchor(source)
     line_start = source.rfind("\n", 0, usage.start()) + 1
-    indent = usage.group(1)
+    if line_start <= import_at:
+        sys.exit("unexpected layout: parse_model appears before the first class - aborted")
+
     patched = (
-        source[: find_import_anchor(source)]
-        + "\n"
-        + IMPORT_BLOCK
-        + source[find_import_anchor(source) : line_start]
-        + USAGE_BLOCK.format(indent=indent)
+        source[:import_at]
+        + IMPORT_BLOCK.strip("\n")
+        + "\n\n\n"
+        + source[import_at:line_start]
+        + USAGE_BLOCK.format(indent=usage.group(1))
         + source[line_start:]
     )
 

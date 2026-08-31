@@ -1,4 +1,7 @@
-# TomaNet-D - detection. Backbone layers 0-8 are byte-identical to tomanet-cls.yaml.
+# TomaNet-D - detection.
+# Neck TomaLayers use expansion=1.0 (5th arg): measured 10.33 -> 8.58 GFLOPs at scale n
+# with no change to the backbone. CoordAtt is kept in the neck - it costs <0.05M params
+# and 0.00 GFLOPs (measured), so there is no reason to drop it. Backbone layers 0-8 are byte-identical to tomanet-cls.yaml.
 # Usage: from tomanet.register import register; register()
 #        YOLO("configs/models/tomanet-det.yaml")
 
@@ -26,18 +29,18 @@ head:
 
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 10
   - [[-1, 6], 1, Concat, [1]] # 11 cat P4
-  - [-1, 2, TomaLayer, [512, 3]] # 12
+  - [-1, 2, TomaLayer, [512, 3, 1.0]] # 12
 
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]] # 13
   - [[-1, 4], 1, Concat, [1]] # 14 cat P3
-  - [-1, 2, TomaLayer, [256, 3]] # 15 (P3/8-small)
+  - [-1, 2, TomaLayer, [256, 3, 1.0]] # 15 (P3/8-small)
 
   - [-1, 1, Conv, [256, 3, 2]] # 16
   - [[-1, 12], 1, Concat, [1]] # 17 cat head P4
-  - [-1, 2, TomaLayer, [512, 3]] # 18 (P4/16-medium)
+  - [-1, 2, TomaLayer, [512, 3, 1.0]] # 18 (P4/16-medium)
 
   - [-1, 1, Conv, [512, 3, 2]] # 19
   - [[-1, 9], 1, Concat, [1]] # 20 cat head P5
-  - [-1, 2, TomaLayer, [1024, 5]] # 21 (P5/32-large)
+  - [-1, 2, TomaLayer, [1024, 5, 1.0]] # 21 (P5/32-large)
 
   - [[15, 18, 21], 1, Detect, [nc]] # 22
