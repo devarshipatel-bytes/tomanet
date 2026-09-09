@@ -26,6 +26,9 @@ canonical:
   15: nutrient_deficiency    # abiotic
   16: leaf_blight
   17: verticillium_wilt
+  18: magnesium_deficiency
+  19: nitrogen_deficiency
+  20: potassium_deficiency
 
 # Severity by lesion-area ratio is only meaningful for discrete lesions.
 # See main.pdf section 8.5 - do not report severity for the others.
@@ -76,15 +79,17 @@ mapping:
       Tomato two spotted spider mites leaf: spider_mites
 
   tomato_village:
-    verified: false
+    verified: true            # checked against Variant-c(Object Detection)/Varient-C Labels.txt
+    variant: "Variant-c(Object Detection)"
     classes:
-      healthy: healthy
-      early_blight: early_blight
-      late_blight: late_blight
-      leaf_mold: leaf_mold
-      leaf_miner: leaf_miner
-      spotted_wilt_virus: spotted_wilt_virus
-      nutrition_deficiency: nutrient_deficiency
+      Early_blight: early_blight
+      Healthy: healthy
+      Late_blight: late_blight
+      "Leaf Miner": leaf_miner
+      "Magnesium Deficiency": magnesium_deficiency
+      "Nitrogen Deficiency": nitrogen_deficiency
+      "Pottassium Deficiency": potassium_deficiency   # dataset's own typo, kept verbatim as the key
+      "Spotted Wilt Virus": spotted_wilt_virus
 
   ccmt:
     verified: false
