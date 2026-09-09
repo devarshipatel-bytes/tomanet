@@ -101,19 +101,38 @@ DET_ADAPTERS = {"tomato_village": adapt_tomato_village_det}
 ```
 
 `adapt_tomato_village_det(root, mapping)` yields `(image_path, [(canonical_id, cx, cy, w,
-h), ...])` — one entry per image, boxes in normalized YOLO xywh as the source ships them,
-class ids translated from the source's 0-7 to this project's canonical ids via `mapping`.
-Reads the source label id order from `Varient-C Labels.txt` inside the dataset (not
-hardcoded), so if the source ever reorders classes this does not silently mismatch.
-Pools TV's `train` and `val` directories together — TV ships no test split, and per-image
+h), ...])` — one entry per image, boxes in normalized YOLO xywh as the source ships them
+(confirmed against real files: `class_id cx cy w h` per line, e.g. `3.0 0.395 0.291 0.131
+0.102`; class id parsed as `int(float(...))`), class ids translated from the source's 0-7
+to this project's canonical ids via `mapping`. Reads the source label id order from
+`Varient-C Labels.txt` inside the dataset (not hardcoded), confirmed to read exactly:
+`Early_blight, Healthy, Late_blight, Leaf Miner, Magnesium Deficiency, Nitrogen
+Deficiency, Pottassium Deficiency, Spotted Wilt Virus`. Pools TV's `train` (11,493 images)
+and `val` (2,875 images) directories together — TV ships no test split, and per-image
 splitting must be redone here for a consistent 70/15/15 with the rest of the project.
 
-Dedup: reuses `drop_duplicates` unchanged — it already operates on `(path, label)` pairs
-and only inspects `path`, so passing box-lists as the label works with no modification.
+**Verified data-integrity problem, changes the split design from the original draft:**
+this dataset bakes in offline augmentation — filenames like `IMG20220323081448.jpg` and
+`IMG20220323081448_aug3.jpg` … `_aug7.jpg` are rotated/cropped/color-shifted copies of one
+physical photo. Measured on disk: train has 11,493 images over only 1,796 unique base
+photos; val has 2,875 images over 1,484 unique base photos; **100% of val's 1,484 base
+photos also have augmented siblings sitting in train** — the dataset's own shipped
+train/val split leaks by construction, the same failure mode already flagged for Taiwan in
+the RUNBOOK, but total rather than partial.
 
-Split: reuses `stratified_split`, stratifying each image by its most-frequent box class
-(images can carry multiple boxes/classes; the split only needs one key per image for
-stratification, ties broken by lowest canonical id for determinism).
+This defeats the dedup path originally planned: perceptual hashing was tested against
+`IMG20220323081448` and its 5 `_aug` siblings and measured Hamming distances of 26-36 (out
+of 64 bits, default duplicate threshold is 6) — the augmentation changes pixels enough
+that `phash` does not see these as duplicates at all. So `drop_duplicates`/`dedup.py` is
+**not used** for this adapter; it would silently do nothing about the actual leakage.
+
+Fix: a new `grouped_stratified_split(items, ratios, seed)` in `prepare_data.py`, used only
+for this adapter (the existing per-image `stratified_split` remains untouched and keeps
+serving all classification adapters). It groups images by base filename with the
+`_aug\d+` suffix stripped, then splits whole groups into train/val/test — stratified by
+each group's most-frequent box class, ties broken by lowest canonical id for determinism.
+No image is dropped; every augmented copy stays as legitimate training signal, but all
+copies of one physical photo are guaranteed to land in the same split.
 
 Output layout, mirroring the classification tree:
 ```
@@ -196,35 +215,42 @@ Add `visualize_detection(weights, data_dir, out_dir, split="test", imgsz=640, de
 
 ## Tests
 
-`tests/test_modules.py` gets two new tests, both against an in-memory / tmp_path fixture
-— no dataset download required:
+`tests/test_modules.py` gets three new tests, all against an in-memory / tmp_path
+fixture — no dataset download required:
 1. A small synthetic directory shaped like `train/{images,yolo}/` with 2-3 fake YOLO
    label files is fed to the adapter; assert the returned boxes and remapped class ids
    match what was written.
 2. The canonical→contiguous remap: given a sparse canonical id list, assert the resulting
    mapping is a bijection onto `0..k-1` and that decoding a contiguous prediction back via
    `data.yaml`'s recorded `canonical_ids` returns the original canonical id.
+3. `grouped_stratified_split`: given a synthetic set of base names each with 2-6 `_augN`
+   variants, assert every variant of a base name lands in the same split — i.e. for every
+   group, `{split for (path, _) in group}` has exactly one element. This is the test that
+   would have caught the leakage found during design verification.
 
 ## Verification plan (before claiming this works)
 
 1. `python scripts/verify_setup.py` — all 6 variants build, print params/GFLOPs, fusion
    check still `[OK]`.
-2. `python scripts/download_datasets.py --only tomato_village` — already run against the
-   real GitHub repo on this machine (in progress as of this spec).
+2. `python scripts/download_datasets.py --only tomato_village` — done: 3.9 GB extracted to
+   `data/raw/tomato_village/Tomato-Village-main/`.
 3. `python scripts/prepare_data.py --dataset tomato_village --task det` against the real
-   downloaded tree — adapter is written and adjusted against the actual extracted
-   directory structure, not the API-inferred one, since local extraction can differ from
-   what the GitHub trees API showed (e.g. zip root folder naming).
-4. `python scripts/train_det.py --data tomato_village --model tomanet --scale n --epochs 1
+   downloaded tree.
+4. After prepare, a leakage check: for every base name, assert all its splits are
+   identical (the same property tested synthetically in test 3, checked here against the
+   real 14,368-image dataset as the final proof the fix works, not just the fixture).
+5. `python scripts/train_det.py --data tomato_village --model tomanet --scale n --epochs 1
    --device cpu` — one real epoch, confirms the full path (data.yaml, dataloader, loss,
    mAP computation, visualize_detection) runs end to end.
-5. `pytest tests/test_modules.py` — new tests pass.
+6. `pytest tests/test_modules.py` — new tests pass.
 
-## Risks / open questions carried into implementation
+## Verified during design (resolved, kept for record)
 
-- The zip extraction root directory name from `codeload.github.com` (typically
-  `Tomato-Village-main/`) needs confirming against what's already on disk in
-  `data/raw/tomato_village/` before the adapter's path glob is finalized.
-- TV's `Varient-C Labels.txt` format (`0 : 'Early_blight'`) needs a small, tolerant parser
-  (quotes and spacing may not be perfectly consistent across all 8 lines) — verified
-  against real file content, not assumed.
+- Zip extraction root is `Tomato-Village-main/` — confirmed on disk.
+- `Varient-C Labels.txt` reads cleanly as `<int> : '<Name>'` per line, all 8 lines
+  consistent: Early_blight, Healthy, Late_blight, Leaf Miner, Magnesium Deficiency,
+  Nitrogen Deficiency, Pottassium Deficiency, Spotted Wilt Virus.
+- YOLO label format confirmed: `<class_id:float> <cx> <cy> <w> <h>` per line, normalized.
+- train: 11,493 images / 1,796 unique base photos. val: 2,875 images / 1,484 unique base
+  photos. 100% base-photo overlap between train and val (see Data layer section above) —
+  this is why the adapter does its own grouped split rather than trusting the shipped one.
