@@ -605,6 +605,13 @@ into:
     if abs(sum(args.ratios) - 1.0) > 1e-6:
         sys.exit(f"ratios must sum to 1.0, got {sum(args.ratios)}")
 
+    if args.task == "det":
+        if args.dataset not in DET_ADAPTERS:
+            sys.exit(f"no detection adapter for '{args.dataset}'. Known: {', '.join(sorted(DET_ADAPTERS))}")
+    else:
+        if args.dataset not in ADAPTERS:
+            sys.exit(f"no adapter for '{args.dataset}'. Known: {', '.join(sorted(ADAPTERS))}")
+
     root = RAW / args.dataset
     if not root.exists():
         sys.exit(f"{root} not found - run: python scripts/download_datasets.py --only {args.dataset}")
@@ -615,9 +622,6 @@ into:
         sys.exit(f"no class mapping for '{args.dataset}' in configs/classes.yaml")
 
     if args.task == "det":
-        if args.dataset not in DET_ADAPTERS:
-            sys.exit(f"no detection adapter for '{args.dataset}'. Known: {', '.join(sorted(DET_ADAPTERS))}")
-
         print(f"preparing {args.dataset} (detection)")
         items = DET_ADAPTERS[args.dataset](root, mapping)
         if not items:
@@ -647,12 +651,15 @@ into:
         print(f"  -> {out_dir / 'split.json'} (seed {args.seed}, reproducible)")
         return
 
-    if args.dataset not in ADAPTERS:
-        sys.exit(f"no adapter for '{args.dataset}'. Known: {', '.join(sorted(ADAPTERS))}")
-
     print(f"preparing {args.dataset}")
 ```
-The rest of `main()` (from `items = ADAPTERS[args.dataset](root, mapping)` onward, i.e. the existing classification path) is unchanged.
+This preserves the original error precedence exactly: for whichever task is active, the
+adapter-membership check fires before the root/mapping checks, same as it did before this
+change (an earlier draft of this task moved that check to fire after root/mapping checks
+for the cls path, silently changing which error an unknown `--dataset` produces - that
+would have been a real, if minor, regression). The rest of `main()` (from
+`items = ADAPTERS[args.dataset](root, mapping)` onward, i.e. the existing classification
+path) is unchanged.
 
 Also update the `--list` block just above (it currently checks only `ADAPTERS`) — leave it as-is; it's cls-specific and `--task det --list` isn't a combination this plan needs to support (YAGNI).
 
