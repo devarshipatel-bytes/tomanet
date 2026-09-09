@@ -106,8 +106,8 @@ def check_reparam_fusion() -> None:
         sys.exit("re-parameterisation is not equivalent - do not train until this is fixed")
 
 
-def check_ultralytics(scale: str) -> None:
-    print("== ultralytics integration ==")
+def check_ultralytics() -> None:
+    print("== ultralytics integration (all variants) ==")
     try:
         from ultralytics import YOLO
     except ImportError:
@@ -123,12 +123,23 @@ def check_ultralytics(scale: str) -> None:
         return
 
     for task, size in (("cls", 224), ("det", 640)):
-        path = REPO_ROOT / "configs" / "models" / f"tomanet-{task}.yaml"
-        model = YOLO(str(path))
-        params = count_params(model.model)
-        gflops = count_gflops(model.model, size)
-        flops_text = f", {gflops:.2f} GFLOPs" if gflops else ""
-        print(f"  tomanet-{task} @ {size}px: {params / 1e6:.2f} M params{flops_text}")
+        for scale in SCALES:
+            src = REPO_ROOT / "configs" / "models" / f"tomanet-{task}.yaml"
+            scaled = src.parent / f"tomanet-{task}{scale}.yaml"
+            # Write scale-specific YAML with depth_multiple and width_multiple instead of scales dict
+            yaml_text = src.read_text()
+            depth, width = SCALES[scale]
+            # Replace the scales dict with depth_multiple and width_multiple
+            yaml_text = yaml_text.replace(
+                "scales: # [depth, width, max_channels]\n  n: [0.50, 0.25, 1024]\n  s: [0.50, 0.50, 1024]\n  m: [1.00, 0.75, 768]",
+                f"depth_multiple: {depth}\nwidth_multiple: {width}"
+            )
+            scaled.write_text(yaml_text, encoding="utf-8")
+            model = YOLO(str(scaled))
+            params = count_params(model.model)
+            gflops = count_gflops(model.model, size)
+            flops_text = f", {gflops:.2f} GFLOPs" if gflops else ""
+            print(f"  tomanet-{task}-{scale} @ {size}px: {params / 1e6:.2f} M params{flops_text}")
 
 
 def main() -> None:
@@ -140,7 +151,7 @@ def main() -> None:
     print()
     check_reparam_fusion()
     print()
-    check_ultralytics(args.scale)
+    check_ultralytics()
 
 
 if __name__ == "__main__":
