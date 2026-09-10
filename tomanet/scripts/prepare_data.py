@@ -263,6 +263,68 @@ def materialise(assignment, out_dir: Path, copy: bool) -> None:
             target.symlink_to(path.resolve())
 
 
+def materialise_det(assignment, out_dir: Path, copy: bool) -> list[str]:
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+
+    class_names = sorted({name for _, boxes in assignment.values() for name, *_ in boxes})
+    name_to_id = {name: i for i, name in enumerate(class_names)}
+
+    for path, (split, boxes) in assignment.items():
+        images_dir = out_dir / split / "images"
+        labels_dir = out_dir / split / "labels"
+        images_dir.mkdir(parents=True, exist_ok=True)
+        labels_dir.mkdir(parents=True, exist_ok=True)
+
+        stem = f"{abs(hash(str(path))) % 10**8}_{path.stem}"
+        image_target = images_dir / f"{stem}{path.suffix}"
+        if copy:
+            shutil.copy2(path, image_target)
+        else:
+            image_target.symlink_to(path.resolve())
+
+        lines = [f"{name_to_id[name]} {cx} {cy} {w} {h}" for name, cx, cy, w, h in boxes]
+        (labels_dir / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    data_yaml = {
+        "path": str(out_dir.resolve()),
+        "train": "train/images",
+        "val": "val/images",
+        "test": "test/images",
+        "names": {i: name for i, name in enumerate(class_names)},
+    }
+    (out_dir / "data.yaml").write_text(yaml.safe_dump(data_yaml, sort_keys=False), encoding="utf-8")
+    return class_names
+
+
+def report_det(assignment, class_names) -> None:
+    per_split_images = Counter(split for split, _ in assignment.values())
+    per_split_boxes = Counter()
+    per_class = defaultdict(Counter)
+    for split, boxes in assignment.values():
+        per_split_boxes[split] += len(boxes)
+        for name, *_ in boxes:
+            per_class[name][split] += 1
+
+    print(f"\n  {'split':<8} {'images':>8} {'boxes':>8}")
+    print("  " + "-" * 26)
+    for split in SPLITS:
+        print(f"  {split:<8} {per_split_images[split]:>8} {per_split_boxes[split]:>8}")
+
+    print(f"\n  {'class':<26} {'train':>7} {'val':>6} {'test':>6} {'total':>7}")
+    print("  " + "-" * 54)
+    for cls in class_names:
+        counts = per_class[cls]
+        total = sum(counts.values())
+        print(f"  {cls:<26} {counts['train']:>7} {counts['val']:>6} {counts['test']:>6} {total:>7}")
+
+    sizes = [sum(per_class[c].values()) for c in class_names]
+    if sizes:
+        ratio = max(sizes) / max(1, min(sizes))
+        note = "  <- use class-balanced loss (ratio > 5)" if ratio > 5 else ""
+        print(f"\n  box imbalance ratio (largest/smallest class): {ratio:.1f}{note}")
+
+
 def report(assignment) -> None:
     per_split = Counter(split for split, _ in assignment.values())
     per_class = defaultdict(Counter)
@@ -291,6 +353,8 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--dataset", help="dataset name as in configs/datasets.yaml")
+    parser.add_argument("--task", default="cls", choices=["cls", "det"],
+                        help="cls: ImageFolder tree (default). det: YOLO-format boxes.")
     parser.add_argument("--list", action="store_true", help="show datasets with an adapter")
     parser.add_argument("--ratios", nargs=3, type=float, default=[0.70, 0.15, 0.15],
                         metavar=("TRAIN", "VAL", "TEST"))
@@ -308,8 +372,15 @@ def main() -> None:
         print("\nAdd new ones to ADAPTERS in this file once you can see their directory tree.")
         return
 
-    if args.dataset not in ADAPTERS:
-        sys.exit(f"no adapter for '{args.dataset}'. Known: {', '.join(sorted(ADAPTERS))}")
+    if abs(sum(args.ratios) - 1.0) > 1e-6:
+        sys.exit(f"ratios must sum to 1.0, got {sum(args.ratios)}")
+
+    if args.task == "det":
+        if args.dataset not in DET_ADAPTERS:
+            sys.exit(f"no detection adapter for '{args.dataset}'. Known: {', '.join(sorted(DET_ADAPTERS))}")
+    else:
+        if args.dataset not in ADAPTERS:
+            sys.exit(f"no adapter for '{args.dataset}'. Known: {', '.join(sorted(ADAPTERS))}")
 
     root = RAW / args.dataset
     if not root.exists():
@@ -320,8 +391,35 @@ def main() -> None:
     if not mapping:
         sys.exit(f"no class mapping for '{args.dataset}' in configs/classes.yaml")
 
-    if abs(sum(args.ratios) - 1.0) > 1e-6:
-        sys.exit(f"ratios must sum to 1.0, got {sum(args.ratios)}")
+    if args.task == "det":
+        print(f"preparing {args.dataset} (detection)")
+        items = DET_ADAPTERS[args.dataset](root, mapping)
+        if not items:
+            sys.exit("adapter produced no images - check the directory layout and the mapping")
+        n_boxes = sum(len(boxes) for _, boxes in items)
+        n_classes = len({name for _, boxes in items for name, *_ in boxes})
+        print(f"  {len(items)} images, {n_boxes} boxes, {n_classes} mapped classes")
+
+        assignment = grouped_stratified_split(items, args.ratios, args.seed)
+        out_dir = PROCESSED / f"{args.dataset}_det"
+        class_names = materialise_det(assignment, out_dir, args.copy)
+        report_det(assignment, class_names)
+
+        INTERIM.mkdir(parents=True, exist_ok=True)
+        split_record = {
+            "dataset": args.dataset,
+            "task": "det",
+            "seed": args.seed,
+            "ratios": args.ratios,
+            "grouped_by": "base filename (strips trailing _augN) to keep augmented "
+                          "copies of one photo in a single split",
+            "classes": class_names,
+            "splits": {str(p): s for p, (s, _) in assignment.items()},
+        }
+        (out_dir / "split.json").write_text(json.dumps(split_record, indent=2), encoding="utf-8")
+        print(f"\n  -> {out_dir}")
+        print(f"  -> {out_dir / 'split.json'} (seed {args.seed}, reproducible)")
+        return
 
     print(f"preparing {args.dataset}")
     items = ADAPTERS[args.dataset](root, mapping)

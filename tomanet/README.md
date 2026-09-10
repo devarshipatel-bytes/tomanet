@@ -53,6 +53,10 @@ Nothing is ever deleted; the manifest is an exclusion list the loaders read.
   622 raw images yourself.
 - **TomatoEbola's Zenodo record (13324917) is access-restricted**, so it is registered as
   `manual`.
+- **Tomato-Village's shipped train/val split leaks by construction.** Its offline
+  augmentation means every one of val's 1,484 base photos has augmented siblings in
+  train; phash dedup does not catch it (Hamming 26-36/64, threshold is 6).
+  `prepare_data.py --task det` re-splits by base-filename group instead.
 
 ## Layout
 

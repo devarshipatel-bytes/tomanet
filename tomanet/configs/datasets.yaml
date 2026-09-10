@@ -91,6 +91,10 @@ datasets:
       - "Published detection reference: YOLOv11x mAP@0.5 0.936 / mAP@[.5:.95] 0.790; YOLOv12n 0.864 / 0.604."
     caveats:
       - "Single region (Rajasthan) - do not treat as representative of all Indian fields."
+      - "Variant-c's shipped train/val split leaks: every one of val's 1,484 base photos
+         also has offline-augmented siblings ('_aug1'..'_aug7') sitting in train. phash
+         dedup does not catch this (measured Hamming distance 26-36/64). prepare_data.py
+         --task det re-splits by base-filename group instead of trusting the shipped split."
 
   ccmt:
     tier: core
