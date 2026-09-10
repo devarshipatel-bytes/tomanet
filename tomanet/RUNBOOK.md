@@ -17,7 +17,6 @@ python scripts/verify_setup.py
 ```
 
 Expected output:
-
 ```
 == standalone trunk (scale n) ==
   224px -> (1, 256, 7, 7)    0.34 GFLOPs
@@ -194,9 +193,26 @@ CoordAtt is kept in the neck because it measured at <0.05 M params and 0.00 GFLO
 
 ---
 
+## Detection
+
+```bash
+python scripts/download_datasets.py --only tomato_village   # ~1.6 GB compressed
+python scripts/prepare_data.py --dataset tomato_village --task det --copy
+python scripts/train_det.py --data tomato_village --model tomanet --scale n \
+    --epochs 5 --smoke --device 0
+```
+
+Tomato-Village's own train/val split leaks (every val base photo has augmented siblings
+in train) - `prepare_data.py --task det` re-splits by base-filename group instead of
+trusting the shipped one; see `configs/datasets.yaml`'s `tomato_village` caveats.
+
+Full run:
+```bash
+python scripts/train_det.py --data tomato_village --model tomanet --scale n \
+    --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8 --seed 0
+```
+
 ## Not built yet
 
-`train_det.py`, cross-domain matrix (E3), SSL pre-training (E4), anomaly/open-set (E5),
-XAI metrics (E6), efficiency benchmark (E7), results→LaTeX aggregator. Detection also
-needs a box-format adapter in `prepare_data.py`, which must be written against
-Tomato-Village's actual directory tree once it is downloaded.
+Cross-domain matrix (E3), SSL pre-training (E4), anomaly/open-set (E5), XAI metrics (E6),
+efficiency benchmark (E7), results→LaTeX aggregator.
