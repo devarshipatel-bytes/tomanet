@@ -11,3 +11,14 @@ weights/
 *.7z
 *.tar.gz
 .DS_Store
+
+# Scale-suffixed model configs are regenerated on every run of verify_setup.py /
+# train_cls.py / train_det.py from configs/models/tomanet-{cls,det}.yaml - never edit
+# them directly, and they don't belong in git (tomanet-clsn.yaml was committed by
+# accident once; see git history).
+configs/models/tomanet-clsn.yaml
+configs/models/tomanet-clss.yaml
+configs/models/tomanet-clsm.yaml
+configs/models/tomanet-detn.yaml
+configs/models/tomanet-dets.yaml
+configs/models/tomanet-detm.yaml
