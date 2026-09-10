@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import shutil
 import sys
 from collections import Counter, defaultdict
@@ -40,6 +41,18 @@ INTERIM = REPO_ROOT / "data" / "interim"
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 SPLITS = ("train", "val", "test")
+
+_AUG_SUFFIX = re.compile(r"_aug\d+$")
+
+
+def group_key(path: Path) -> str:
+    """Base identity of a file, stripping this dataset's '_aug<N>' offline-augmentation suffix.
+
+    Used to keep every augmented copy of one physical photo in the same split - phash
+    dedup does not catch these (measured Hamming distance 26-36/64), so grouping by name
+    is the only reliable way to prevent train/val/test leakage.
+    """
+    return _AUG_SUFFIX.sub("", path.stem)
 
 
 def load_classes() -> dict:
@@ -108,6 +121,49 @@ def adapt_imagefolder(root: Path, mapping: dict) -> list[tuple[Path, str]]:
     return items
 
 
+def adapt_tomato_village_det(root: Path, mapping: dict) -> list[tuple[Path, list[tuple[str, float, float, float, float]]]]:
+    """Variant-c(Object Detection)/{train,val}/{images,yolo}/*
+
+    Labels are shipped in the source's own 0-7 order, read from 'Varient-C Labels.txt'
+    (not hardcoded) and translated through `mapping` to canonical class names.
+    """
+    base = root / "Tomato-Village-main" / "Variant-c(Object Detection)"
+    if not base.exists():
+        raise FileNotFoundError(f"expected {base} - re-run the downloader")
+
+    label_file = base / "Varient-C Labels.txt"
+    source_names = {}
+    for line in label_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        idx_part, name_part = line.split(":", 1)
+        source_names[int(idx_part.strip())] = name_part.strip().strip("'\"")
+
+    items = []
+    for split_dir in ("train", "val"):
+        images_dir = base / split_dir / "images"
+        labels_dir = base / split_dir / "yolo"
+        for image_path in images_under(images_dir):
+            label_path = labels_dir / f"{image_path.stem}.txt"
+            boxes = []
+            if label_path.exists():
+                for line in label_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split()
+                    source_id = int(float(parts[0]))
+                    cx, cy, w, h = (float(v) for v in parts[1:5])
+                    canonical = mapping.get(source_names.get(source_id))
+                    if canonical is None:
+                        continue
+                    boxes.append((canonical, cx, cy, w, h))
+            if boxes:
+                items.append((image_path, boxes))
+    return items
+
+
 ADAPTERS = {
     "taiwan": adapt_taiwan,
     "plantvillage": adapt_plantvillage,
@@ -115,6 +171,8 @@ ADAPTERS = {
     "plantdoc": adapt_imagefolder,
     "ccmt": adapt_imagefolder,
 }
+
+DET_ADAPTERS = {"tomato_village": adapt_tomato_village_det}
 
 
 # ------------------------------------------------------------------ build ----
@@ -148,6 +206,45 @@ def stratified_split(items, ratios, seed):
         for i, path in enumerate(paths):
             split = "train" if i < n_train else "val" if i < n_train + n_val else "test"
             assignment[path] = (split, cls)
+    return assignment
+
+
+def grouped_stratified_split(items, ratios, seed):
+    """Like stratified_split, but splits whole groups (by group_key) instead of images.
+
+    Stratifies each group by its most-frequent box class (ties broken alphabetically),
+    then applies the same per-class train/val/test cutoffs as stratified_split.
+    """
+    groups = defaultdict(list)
+    for path, boxes in items:
+        groups[group_key(path)].append((path, boxes))
+
+    def primary_class(members):
+        counts = Counter(name for _, boxes in members for name, *_ in boxes)
+        best = max(counts.values())
+        return min(name for name, count in counts.items() if count == best)
+
+    by_class = defaultdict(list)
+    for key, members in groups.items():
+        by_class[primary_class(members)].append(key)
+
+    rng = random.Random(seed)
+    group_split = {}
+    for cls, keys in sorted(by_class.items()):
+        keys = sorted(keys)
+        rng.shuffle(keys)
+        n = len(keys)
+        n_train = int(n * ratios[0])
+        n_val = int(n * ratios[1])
+        for i, key in enumerate(keys):
+            split = "train" if i < n_train else "val" if i < n_train + n_val else "test"
+            group_split[key] = split
+
+    assignment = {}
+    for key, members in groups.items():
+        split = group_split[key]
+        for path, boxes in members:
+            assignment[path] = (split, boxes)
     return assignment
 
 
