@@ -182,24 +182,71 @@ def visualize_classification(weights: Path, data_dir: Path, out_dir: Path,
     return metrics
 
 
+def visualize_detection(weights: Path, data_yaml: Path, out_dir: Path,
+                        split: str = "test", imgsz: int = 640, device: str = "0") -> dict:
+    weights, data_yaml, out_dir = Path(weights), Path(data_yaml), Path(out_dir)
+    if not weights.exists():
+        print(f"  ! no weights at {weights} - skipping visualizations")
+        return {}
+
+    model = _load_model(weights)
+    print(f"  validating on {split} split")
+
+    val_results = model.val(
+        data=str(data_yaml), split=split, imgsz=imgsz, device=device,
+        plots=True, project=str(out_dir.parent), name=out_dir.name, exist_ok=True,
+        verbose=False,
+    )
+
+    overall = val_results.results_dict
+    per_class = val_results.summary()
+    metrics = {
+        "split": split,
+        "n_images": int(sum(row["Images"] for row in per_class)) if per_class else 0,
+        "precision": overall.get("metrics/precision(B)", 0.0),
+        "recall": overall.get("metrics/recall(B)", 0.0),
+        "map50": overall.get("metrics/mAP50(B)", 0.0),
+        "map50_95": overall.get("metrics/mAP50-95(B)", 0.0),
+        "per_class": {row["Class"]: row for row in per_class},
+    }
+
+    # ultralytics' summary() rows mix in numpy scalars (int64/float32); json can't
+    # serialize those directly, so unwrap anything with .item() (numpy scalar -> python).
+    to_native = lambda o: o.item() if hasattr(o, "item") else str(o)
+    (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=2, default=to_native), encoding="utf-8")
+    print(f"  mAP50 {metrics['map50']:.4f} | mAP50-95 {metrics['map50_95']:.4f} "
+          f"| precision {metrics['precision']:.4f} | recall {metrics['recall']:.4f}")
+    return metrics
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--weights", required=True)
     parser.add_argument("--data", required=True, help="prepared dataset name, e.g. taiwan")
+    parser.add_argument("--task", default="cls", choices=["cls", "det"])
     parser.add_argument("--split", default="test", choices=["train", "val", "test"])
-    parser.add_argument("--imgsz", type=int, default=224)
+    parser.add_argument("--imgsz", type=int, default=None)
     parser.add_argument("--device", default="0")
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
     weights = Path(args.weights)
-    visualize_classification(
-        weights=weights,
-        data_dir=REPO_ROOT / "data" / "processed" / f"{args.data}_cls",
-        out_dir=Path(args.out) if args.out else weights.parent.parent,
-        split=args.split, imgsz=args.imgsz, device=args.device,
-    )
+    out_dir = Path(args.out) if args.out else weights.parent.parent
+    if args.task == "det":
+        visualize_detection(
+            weights=weights,
+            data_yaml=REPO_ROOT / "data" / "processed" / f"{args.data}_det" / "data.yaml",
+            out_dir=out_dir,
+            split=args.split, imgsz=args.imgsz or 640, device=args.device,
+        )
+    else:
+        visualize_classification(
+            weights=weights,
+            data_dir=REPO_ROOT / "data" / "processed" / f"{args.data}_cls",
+            out_dir=out_dir,
+            split=args.split, imgsz=args.imgsz or 224, device=args.device,
+        )
 
 
 if __name__ == "__main__":
