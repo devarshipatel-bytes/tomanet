@@ -167,7 +167,7 @@ def main() -> None:
 
     print(f"\nInspect these before trusting any number:")
     for artefact in ("train_batch0.jpg", "results.png", "confusion_matrix_normalized.png",
-                     "PR_curve.png"):
+                     "BoxPR_curve.png"):
         path = save_dir / artefact
         print(f"  {'OK ' if path.exists() else '(missing) '}{path}")
 
