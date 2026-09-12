@@ -263,12 +263,22 @@ def materialise(assignment, out_dir: Path, copy: bool) -> None:
             target.symlink_to(path.resolve())
 
 
-def materialise_det(assignment, out_dir: Path, copy: bool) -> list[str]:
+def materialise_det(assignment, out_dir: Path, copy: bool, *, oversample_cap: int = 4) -> list[str]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
 
     class_names = sorted({name for _, boxes in assignment.values() for name, *_ in boxes})
     name_to_id = {name: i for i, name in enumerate(class_names)}
+
+    # tomato_village_det is ~95:1 leaf_miner:potassium_deficiency by instance count, and the
+    # two rarest classes are exactly the two worst-scoring ones. Duplicate each train image
+    # sqrt(freq-ratio) times (capped) so rare-class images are sampled more often per epoch.
+    # ponytail: naive frequency heuristic, not a real weighted sampler - revisit if per-class
+    # AP is still badly skewed after this.
+    train_class_counts = Counter(
+        name for split, boxes in assignment.values() if split == "train" for name, *_ in boxes
+    )
+    max_count = max(train_class_counts.values(), default=1)
 
     for path, (split, boxes) in assignment.items():
         images_dir = out_dir / split / "images"
@@ -277,14 +287,22 @@ def materialise_det(assignment, out_dir: Path, copy: bool) -> list[str]:
         labels_dir.mkdir(parents=True, exist_ok=True)
 
         stem = f"{abs(hash(str(path))) % 10**8}_{path.stem}"
-        image_target = images_dir / f"{stem}{path.suffix}"
-        if copy:
-            shutil.copy2(path, image_target)
-        else:
-            image_target.symlink_to(path.resolve())
-
         lines = [f"{name_to_id[name]} {cx} {cy} {w} {h}" for name, cx, cy, w, h in boxes]
-        (labels_dir / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        label_text = "\n".join(lines) + "\n"
+
+        repeats = 1
+        if split == "train" and boxes:
+            rarest = min(train_class_counts[name] for name, *_ in boxes)
+            repeats = min(oversample_cap, max(1, round((max_count / rarest) ** 0.5)))
+
+        for r in range(repeats):
+            suffix = "" if r == 0 else f"_dup{r}"
+            image_target = images_dir / f"{stem}{suffix}{path.suffix}"
+            if copy:
+                shutil.copy2(path, image_target)
+            else:
+                image_target.symlink_to(path.resolve())
+            (labels_dir / f"{stem}{suffix}.txt").write_text(label_text, encoding="utf-8")
 
     data_yaml = {
         "path": str(out_dir.resolve()),
