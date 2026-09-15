@@ -263,7 +263,7 @@ def materialise(assignment, out_dir: Path, copy: bool) -> None:
             target.symlink_to(path.resolve())
 
 
-def materialise_det(assignment, out_dir: Path, copy: bool, *, oversample_cap: int = 4) -> list[str]:
+def materialise_det(assignment, out_dir: Path, copy: bool, *, oversample_cap: int = 10) -> list[str]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
 
