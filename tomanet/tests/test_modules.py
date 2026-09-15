@@ -114,6 +114,31 @@ def test_backbone_yamls_share_an_identical_backbone():
     assert backbone("tomanet-cls.yaml") == backbone("tomanet-det.yaml")
 
 
+def test_cls_backbone_transfers_into_the_detector():
+    """train_det.py --init-from relies on every backbone tensor matching by name AND shape."""
+    from tomanet.register import is_patched, register
+
+    register()
+    if not is_patched():
+        return  # ultralytics not patched; build would be wrong anyway
+    from ultralytics import YOLO
+    from ultralytics.utils.torch_utils import intersect_dicts
+
+    configs = Path(__file__).resolve().parent.parent / "configs" / "models"
+    with tempfile.TemporaryDirectory() as tmp:
+        built = {}
+        for kind in ("cls", "det"):
+            path = Path(tmp) / f"tomanet-{kind}n.yaml"
+            path.write_text((configs / f"tomanet-{kind}.yaml").read_text())
+            built[kind] = YOLO(str(path)).model.state_dict()
+
+    backbone = tuple(f"model.{i}." for i in range(9))
+    shared = intersect_dicts(built["cls"], built["det"])
+    det_backbone = {k for k in built["det"] if k.startswith(backbone)}
+    assert det_backbone <= set(shared), "backbone tensors would not transfer"
+    assert not (set(shared) - det_backbone), "non-backbone tensors transferred unexpectedly"
+
+
 def test_group_key_strips_aug_suffix():
     assert prepare_data.group_key(Path("IMG123_aug3.jpg")) == "IMG123"
     assert prepare_data.group_key(Path("IMG123_aug10.jpg")) == "IMG123"

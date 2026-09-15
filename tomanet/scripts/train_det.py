@@ -35,15 +35,16 @@ PROCESSED = REPO_ROOT / "data" / "processed"
 # Augmentation presets.
 #
 # Unlike classification, rotating a detection image inflates its axis-aligned box, so
-# `degrees=0.0` here (classification's --aug leaf uses 15.0). Mosaic/mixup are standard
-# ultralytics detection augmentations with no leaf-specific reason to disable them.
+# `degrees=0.0` here (classification's --aug leaf uses 15.0). scale/mixup follow the
+# detection recipe in sections/11_experiments.tex; mosaic is closed for the last 10
+# epochs (close_mosaic below) so the model finishes on un-collaged images.
 AUG_PRESETS = {
     "leaf": dict(
         auto_augment=None, erasing=0.0,
         hsv_h=0.015, hsv_s=0.4, hsv_v=0.3,
-        degrees=0.0, translate=0.1, scale=0.3,
+        degrees=0.0, translate=0.1, scale=0.5,
         fliplr=0.5, flipud=0.3,
-        mosaic=1.0, mixup=0.0, copy_paste=0.0,
+        mosaic=1.0, mixup=0.1, copy_paste=0.0,
     ),
     "ultralytics": dict(),   # library defaults, for the ablation
     "none": dict(
@@ -88,8 +89,15 @@ def main() -> None:
     parser.add_argument("--device", default="0", help="'0' for GPU 0, 'cpu' for CPU")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--lr0", type=float, default=1e-3, help="AdamW initial LR")
-    parser.add_argument("--patience", type=int, default=15, help="early-stop on val")
+    parser.add_argument("--lr0", type=float, default=0.01, help="SGD initial LR")
+    parser.add_argument("--patience", type=int, default=30,
+                        help="early-stop on val mAP50-95; stopping early also cuts the "
+                             "cosine LR decay and the mosaic close-out short")
+    parser.add_argument("--init-from", default=None, metavar="CKPT",
+                        help="warm-start the backbone from a TomaNet-C classifier checkpoint "
+                             "(runs/classify/<run>/weights/best.pt). Backbone layers 0-8 are "
+                             "identical by design, so they transfer; the head trains fresh. "
+                             "Use the same --scale the classifier was trained at.")
     parser.add_argument("--name", default=None, help="run name (default: auto)")
     parser.add_argument("--smoke", action="store_true",
                         help="tiny run to verify the pipeline: few epochs, small images")
@@ -105,6 +113,9 @@ def main() -> None:
             f"{data_yaml_path} not found - run: "
             f"python scripts/prepare_data.py --dataset {args.data} --task det"
         )
+
+    if args.init_from and not Path(args.init_from).exists():
+        sys.exit(f"--init-from {args.init_from} not found")
 
     data_cfg = yaml.safe_load(data_yaml_path.read_text())
     names = data_cfg["names"]
@@ -134,16 +145,22 @@ def main() -> None:
         workers=args.workers,
         seed=args.seed,
         deterministic=True,
-        optimizer="AdamW",
+        # Detection recipe (sections/11_experiments.tex), NOT the classification one:
+        # ultralytics' detection defaults are tuned for SGD, and wd 0.05 is 100x the
+        # detection value - on a 2.9M-parameter model that alone costs several mAP points.
+        optimizer="SGD",
         lr0=args.lr0,
         lrf=0.01,
         cos_lr=True,
-        weight_decay=0.05,
+        momentum=0.937,
+        weight_decay=5e-4,
         warmup_epochs=3,
+        close_mosaic=10,
         patience=args.patience,
         project=str(REPO_ROOT / "runs" / "detect"),
         name=run_name,
         exist_ok=True,
+        pretrained=args.init_from or False,
         plots=True,
         val=True,
         **AUG_PRESETS[args.aug],
@@ -164,6 +181,15 @@ def main() -> None:
             imgsz=args.imgsz,
             device=args.device,
         )
+
+    # Early stopping truncates the cosine schedule and the mosaic close-out, so best.pt
+    # from a stopped run is systematically worse than the same budget trained to term.
+    results_csv = save_dir / "results.csv"
+    epochs_run = len(results_csv.read_text().strip().splitlines()) - 1 if results_csv.exists() else 0
+    if 0 < epochs_run < args.epochs:
+        print(f"\nWARNING: stopped at epoch {epochs_run}/{args.epochs} (patience {args.patience}).")
+        print("  The cosine LR never annealed and mosaic never closed - best.pt is under-trained.")
+        print(f"  Re-run with --epochs {epochs_run} so the schedule fits, or raise --patience.")
 
     print(f"\nInspect these before trusting any number:")
     for artefact in ("train_batch0.jpg", "results.png", "confusion_matrix_normalized.png",

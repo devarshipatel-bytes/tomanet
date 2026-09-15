@@ -212,6 +212,23 @@ python scripts/train_det.py --data tomato_village --model tomanet --scale n \
     --epochs 100 --imgsz 640 --batch 16 --device 0 --workers 8 --seed 0
 ```
 
+TomaNet has no COCO weights, so a from-scratch detector on 10 k images underfits. Train
+the classifier first and warm-start the backbone from it (layers 0-8 are identical by
+design; `--init-from` transfers all 300 backbone tensors and nothing else):
+```bash
+# plantvillage: 18 k tomato images, the largest set with a cls adapter (ADAPTERS in
+# prepare_data.py). Lab domain, but it is backbone init, not the final model.
+python scripts/prepare_data.py --dataset plantvillage --task cls --copy
+python scripts/train_cls.py --data plantvillage --model tomanet --scale n --epochs 100
+python scripts/train_det.py --data tomato_village --model tomanet --scale n \
+    --epochs 100 --init-from runs/classify/plantvillage_tomanetn/weights/best.pt
+```
+
+`--epochs` also sets the cosine LR schedule and the mosaic close-out (last 10 epochs).
+An early stop truncates both, so `best.pt` from a stopped run is systematically worse
+than the same wall-clock trained to term - set `--epochs` to the budget you will
+actually run rather than relying on `--patience`.
+
 ## Not built yet
 
 Cross-domain matrix (E3), SSL pre-training (E4), anomaly/open-set (E5), XAI metrics (E6),
