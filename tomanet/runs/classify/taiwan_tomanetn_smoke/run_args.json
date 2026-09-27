@@ -1,0 +1,17 @@
+{
+  "data": "taiwan",
+  "model": "tomanet",
+  "scale": "n",
+  "epochs": 3,
+  "imgsz": 128,
+  "batch": 16,
+  "device": "cpu",
+  "workers": 2,
+  "seed": 0,
+  "lr0": 0.001,
+  "patience": 15,
+  "name": null,
+  "smoke": true,
+  "aug": "leaf",
+  "no_viz": false
+}

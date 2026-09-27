@@ -1,0 +1,70 @@
+{
+  "split": "test",
+  "n_images": 3536,
+  "precision": 0.45863720928088775,
+  "recall": 0.40009946794394696,
+  "map50": 0.39232920904175456,
+  "map50_95": 0.17798535438858415,
+  "per_class": {
+    "late_blight": {
+      "Class": "late_blight",
+      "Images": 195,
+      "Instances": 823,
+      "Box-P": 0.55902,
+      "Box-R": 0.45747,
+      "Box-F1": 0.50317,
+      "mAP50": 0.43742,
+      "mAP50-95": 0.18683
+    },
+    "leaf_miner": {
+      "Class": "leaf_miner",
+      "Images": 1986,
+      "Instances": 18316,
+      "Box-P": 0.54767,
+      "Box-R": 0.41346,
+      "Box-F1": 0.4712,
+      "mAP50": 0.43332,
+      "mAP50-95": 0.19175
+    },
+    "magnesium_deficiency": {
+      "Class": "magnesium_deficiency",
+      "Images": 469,
+      "Instances": 2356,
+      "Box-P": 0.4753,
+      "Box-R": 0.59465,
+      "Box-F1": 0.52832,
+      "mAP50": 0.55047,
+      "mAP50-95": 0.28086
+    },
+    "nitrogen_deficiency": {
+      "Class": "nitrogen_deficiency",
+      "Images": 117,
+      "Instances": 489,
+      "Box-P": 0.29843,
+      "Box-R": 0.14928,
+      "Box-F1": 0.19901,
+      "mAP50": 0.15702,
+      "mAP50-95": 0.06332
+    },
+    "potassium_deficiency": {
+      "Class": "potassium_deficiency",
+      "Images": 40,
+      "Instances": 237,
+      "Box-P": 0.2681,
+      "Box-R": 0.25738,
+      "Box-F1": 0.26263,
+      "mAP50": 0.23407,
+      "mAP50-95": 0.12019
+    },
+    "spotted_wilt_virus": {
+      "Class": "spotted_wilt_virus",
+      "Images": 729,
+      "Instances": 4516,
+      "Box-P": 0.60331,
+      "Box-R": 0.52834,
+      "Box-F1": 0.56334,
+      "mAP50": 0.54167,
+      "mAP50-95": 0.22497
+    }
+  }
+}

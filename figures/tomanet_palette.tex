@@ -1,0 +1,35 @@
+% =====================================================================
+%  tomanet_palette.tex -- one colour per architectural role, shared by
+%  fig_tomanet_c.tex and fig_tomanet_d.tex so a shared module (the stem
+%  and backbone) keeps the exact same colour in both figures. That
+%  visual identity IS the point: TomaNet-C and TomaNet-D use a
+%  byte-identical trunk (layers 0-8) and only the colours after the
+%  trunk change.
+% =====================================================================
+\definecolor{tStem}   {RGB}{243,203,150}  % stem convs             sand
+\definecolor{tStemP}  {RGB}{253,240,222}  % stem panel
+\definecolor{tTrunk}  {RGB}{150,196,140}  % TomaLayer stages        leaf green
+\definecolor{tTrunkP} {RGB}{232,244,227}  % trunk panel
+\definecolor{tBlkA}   {RGB}{120,175,190}  % RepPConv / spatial      teal
+\definecolor{tBlkB}   {RGB}{150,150,200}  % CoordAtt                periwinkle
+\definecolor{tNeck}   {RGB}{ 90,110,175}  % TomaLayer, neck (e=1.0) deep slate blue
+\definecolor{tNeckP}  {RGB}{231,236,247}  % neck panel
+\definecolor{tStruct} {RGB}{200,200,200}  % structural ops: upsample / concat -- not a learned layer, so deliberately neutral grey
+\definecolor{tHeadC}  {RGB}{210,110,90}   % classify head           tomato red
+\definecolor{tHeadCP} {RGB}{250,231,225}  % classify head panel
+\definecolor{tHeadD}  {RGB}{210,110,90}   % detect heads            tomato red (same family: both are "the answer")
+\definecolor{tHeadDP} {RGB}{250,231,225}  % detect head panel
+\definecolor{tLine}   {RGB}{ 90,100,95}   % connector
+\definecolor{tRule}   {RGB}{200,206,200}  % separators
+
+% ---- PlotNeuralNet 3D-tile band colours (darker shade of each block's
+% own hue, used for RightBandedBox's second face -- e.g. "the BN+act
+% half" or "the attention half" of a two-part operation) -------------
+\colorlet{tStemBand}  {tStem!60!black}
+\colorlet{tTrunkBand} {tTrunk!60!black}
+\colorlet{tNeckBand}  {tNeck!60!black}
+\colorlet{tHeadCBand} {tHeadC!60!black}
+\colorlet{tHeadDBand} {tHeadD!60!black}
+\colorlet{tBlkABand}  {tBlkA!60!black}
+\colorlet{tBlkBBand}  {tBlkB!60!black}
+\definecolor{tBlkSum} {RGB}{190,140,150}  % residual / concat ball    dusty rose

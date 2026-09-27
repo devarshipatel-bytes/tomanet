@@ -1,0 +1,48 @@
+{
+  "split": "test",
+  "n_images": 99,
+  "accuracy": 0.494949494949495,
+  "macro_f1": 0.40114390706495967,
+  "macro_precision": 0.39396654719235363,
+  "macro_recall": 0.456643642305407,
+  "cohen_kappa": 0.37484213185147763,
+  "mcc": 0.39300147357662235,
+  "per_class": {
+    "bacterial_spot": {
+      "precision": 0.41935483870967744,
+      "recall": 0.7647058823529411,
+      "f1-score": 0.5416666666666666,
+      "support": 17.0
+    },
+    "black_mold": {
+      "precision": 0.5,
+      "recall": 0.36363636363636365,
+      "f1-score": 0.42105263157894735,
+      "support": 11.0
+    },
+    "gray_spot": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 14.0
+    },
+    "healthy": {
+      "precision": 0.75,
+      "recall": 0.8823529411764706,
+      "f1-score": 0.8108108108108109,
+      "support": 17.0
+    },
+    "late_blight": {
+      "precision": 0.25,
+      "recall": 0.0625,
+      "f1-score": 0.1,
+      "support": 16.0
+    },
+    "powdery_mildew": {
+      "precision": 0.4444444444444444,
+      "recall": 0.6666666666666666,
+      "f1-score": 0.5333333333333333,
+      "support": 24.0
+    }
+  }
+}

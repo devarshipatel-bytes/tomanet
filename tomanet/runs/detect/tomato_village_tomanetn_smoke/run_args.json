@@ -1,0 +1,17 @@
+{
+  "data": "tomato_village",
+  "model": "tomanet",
+  "scale": "n",
+  "epochs": 1,
+  "imgsz": 320,
+  "batch": 8,
+  "device": "cpu",
+  "workers": 8,
+  "seed": 0,
+  "lr0": 0.001,
+  "patience": 15,
+  "name": null,
+  "smoke": true,
+  "aug": "leaf",
+  "no_viz": false
+}

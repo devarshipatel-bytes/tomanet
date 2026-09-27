@@ -1,0 +1,17 @@
+{
+  "data": "plantvillage",
+  "model": "tomanet",
+  "scale": "n",
+  "epochs": 100,
+  "imgsz": 224,
+  "batch": 128,
+  "device": "0",
+  "workers": 8,
+  "seed": 0,
+  "lr0": 0.001,
+  "patience": 15,
+  "name": null,
+  "smoke": false,
+  "aug": "leaf",
+  "no_viz": false
+}

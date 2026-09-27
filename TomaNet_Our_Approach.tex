@@ -1,0 +1,171 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{microtype}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black,breaklinks=true}
+\setlist{nosep,leftmargin=*}
+\newcommand{\model}{\textsc{TomaNet}}
+\newcommand{\modelcls}{\textsc{TomaNet-C}}
+\newcommand{\modeldet}{\textsc{TomaNet-D}}
+
+\title{\textbf{Our Approach: \model{}}\\[4pt]
+\large A Plain-English Guide to the Model We Built}
+\author{Tomato disease detection project}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{What This Project Is}
+Tomato plants get sick from things like bacterial spot, blight, and viruses. A farmer or
+a phone app can either:
+\begin{itemize}
+  \item look at a photo of \emph{one leaf} and say \emph{what disease this is} -- we call
+    this \textbf{classification}, or
+  \item look at a photo of a \emph{whole plant} and \textbf{draw a box} around every
+    diseased spot it can find, even several at once, on several leaves -- we call this
+    \textbf{detection}.
+\end{itemize}
+We built one small, efficient model design that does both jobs, and the data pipeline
+needed to train and check it honestly.
+
+\section{The Model: \modelcls{} and \modeldet{}}
+Both are built from the same reusable building block, called \textsc{TomaBlock}. Think of
+it like a Lego brick: the exact same brick is used to build the ``trunk'' -- the part
+that looks at the raw image and figures out what's in it -- for \emph{both} tasks.
+
+\begin{itemize}
+  \item \textbf{\modelcls{}} (classification) = trunk $\to$ one small extra layer that
+    turns the trunk's output into a single disease name.
+  \item \textbf{\modeldet{}} (detection) = the exact same trunk $\to$ a ``neck'' that
+    combines information at different zoom levels $\to$ a head that draws boxes.
+\end{itemize}
+
+Because the trunk is identical -- not just similar, literally the same list of layers,
+checked automatically by an automated test -- a trunk trained on one task can jump-start
+training on the other. This is not a marketing claim; it is a structural fact about the
+code.
+
+Both come in three sizes, so the same design scales from a phone to a more capable
+server. These are the real, measured numbers (not estimates) from actually running our
+model-building script:
+
+\begin{center}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & \textbf{n (smallest)} & \textbf{s} & \textbf{m (largest)} \\
+\midrule
+\modelcls{} (classification) & 1.32\,M params & 4.47\,M params & 14.44\,M params \\
+\modeldet{} (detection) & 2.92\,M params & 10.64\,M params & 30.79\,M params \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{2mm}
+\noindent (``M'' = million. For comparison, popular phone-sized detectors are usually in
+the same 1--5\,M range.)
+
+\section{What Makes Our Design Different}
+We are not claiming to have invented brand-new ideas from scratch. We took three good,
+published ideas and combined them in a way nobody had applied to tomato disease work
+before, and we picked each one for a specific, explainable reason.
+
+\begin{enumerate}
+  \item \textbf{We only convolve a quarter of the channels at a time (``PConv'').}
+    A normal convolution touches every channel of every layer, which is slow mainly
+    because of memory movement, not the actual math -- and memory movement is the real
+    speed bottleneck on small devices like a phone. This idea comes from a method called
+    FasterNet \cite{fasternet}. We use it so the model stays fast and light.
+  \item \textbf{We add a positional attention step (``Coordinate Attention'').}
+    Disease spots on a leaf are small and appear in specific places, not spread evenly
+    across the whole leaf. A common shortcut used in many lightweight models
+    (channel-only attention) throws away exactly that positional information.
+    Coordinate Attention \cite{coordatt} keeps track of \emph{where} on the leaf
+    something unusual is happening, which matters for small, localised problems like
+    lesions.
+  \item \textbf{We train with a richer version of the block, then simplify it before
+    deployment (``re-parameterisation'').}
+    During training, our block briefly has three small parallel paths, which helps it
+    learn better. Right before the model is used for real, those three paths are
+    mathematically folded back into one single, simple path -- so training gets the
+    benefit, but the final deployed model pays no extra cost. This RepVGG-style trick
+    \cite{repvgg} is checked in our own tests to be numerically exact (the folded and
+    unfolded versions agree to about five decimal places).
+  \item \textbf{One trunk, two jobs.}
+    As described above, the same trunk serves both classification and detection,
+    byte-for-byte identical in the model definition. This is the part of the design that
+    is genuinely uncommon in tomato disease research specifically -- most published work
+    builds a completely separate model for each task.
+\end{enumerate}
+
+\noindent We are honest about scale: our detection model is not smaller than every
+competing lightweight detector on the market. The point we are actually trying to prove
+is that one small, shared design can do both jobs well and transfer knowledge between
+them -- and that claim has to be measured with real experiments, not assumed.
+
+\section{Datasets We Actually Use}
+Many public tomato datasets exist. Only the ones below are wired into working code right
+now -- meaning there is a script that downloads them, cleans them, and prepares them for
+training. Nothing else is included here; this list is deliberately limited to what
+actually runs today.
+
+\subsection{For Classification (``what disease is this leaf?'')}
+\begin{itemize}
+  \item \textbf{PlantVillage} -- 18{,}160 tomato leaf photos, 10 disease/healthy classes.
+    Taken in a lab on a plain background, not in a real field.
+  \item \textbf{Taiwan tomato dataset} -- 622 real field photos, 6 classes. Small, but
+    real-world, so it is our first sanity check for any new model.
+  \item \textbf{PlantDoc} -- around 700 tomato photos scraped from the web, 9 classes.
+  \item \textbf{CCMT} -- field photos from Ghana, 5 classes.
+  \item \textbf{PlantVillage (Zenodo re-split)} -- a smaller, pre-split copy of
+    PlantVillage, used as a quick stand-in when a full run isn't needed.
+\end{itemize}
+
+\subsection{For Detection (``draw a box around every disease spot on this plant'')}
+\begin{itemize}
+  \item \textbf{Tomato-Village (detection variant)} -- field photos from Rajasthan,
+    India. This is currently our \emph{only} working detection dataset. After preparing
+    it, we have 14{,}259 usable images with 6 disease classes that actually have boxes
+    drawn on them. (Two of the eight label names in the source data turned out to have
+    no boxes anywhere in the files -- a real property of the raw data, confirmed by
+    checking every label file directly, not a mistake in our code.)
+\end{itemize}
+
+\noindent No other public dataset has a working detection adapter yet. We checked one
+strong candidate, PlantDoc, and found that its public copy on GitHub does not actually
+contain any box annotation files, despite being listed elsewhere as box-annotated -- so
+it is classification-only in practice, at least from that source.
+
+\subsection{An Important Data-Quality Fix We Made}
+The Tomato-Village detection data ships with its own train/test split already done by
+its authors -- but we found that split leaks: many photos in their ``test'' portion are
+slightly-edited duplicates of photos in their ``training'' portion (rotated, recoloured,
+etc.), which would make any accuracy number misleadingly high. We wrote our own,
+corrected split that keeps every edited copy of the same original photo together on one
+side, so the test numbers we report are trustworthy.
+
+\section{Honest Limits -- What We Have Not Done Yet}
+What exists today is: a working, tested data pipeline for one classification job and one
+detection job, a shared model architecture proven to build correctly at all six sizes,
+and one real (if short) training run on each task confirming the whole pipeline works end
+to end. Larger training runs, comparisons against other models, and the deeper research
+questions (cross-domain generalisation, explainability, unknown-disease detection) are
+the next steps -- see the companion document, \emph{Research Context}, for what the
+literature says about those questions and how they shape our plan.
+
+\begin{thebibliography}{9}
+\footnotesize
+\bibitem{fasternet} J.~Chen et al., ``Run, don't walk: partial convolution (FasterNet),'' \emph{CVPR}, 2023. arXiv:2303.03667
+\bibitem{coordatt} Q.~Hou, D.~Zhou, J.~Feng, ``Coordinate attention for efficient mobile network design,'' \emph{CVPR}, 2021. arXiv:2103.02907
+\bibitem{repvgg} X.~Ding et al., ``RepVGG: making VGG-style ConvNets great again,'' \emph{CVPR}, 2021. arXiv:2101.03697
+\end{thebibliography}
+
+\end{document}

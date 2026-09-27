@@ -1,0 +1,72 @@
+{
+  "split": "test",
+  "n_images": 2692,
+  "accuracy": 0.9962852897473997,
+  "macro_f1": 0.9961374931169891,
+  "macro_precision": 0.9959828905293187,
+  "macro_recall": 0.9963086175894862,
+  "cohen_kappa": 0.9956379646795046,
+  "mcc": 0.9956397395219646,
+  "per_class": {
+    "bacterial_spot": {
+      "precision": 0.9936708860759493,
+      "recall": 0.9968253968253968,
+      "f1-score": 0.9952456418383518,
+      "support": 315.0
+    },
+    "early_blight": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 151.0
+    },
+    "healthy": {
+      "precision": 0.9957805907172996,
+      "recall": 1.0,
+      "f1-score": 0.9978858350951374,
+      "support": 236.0
+    },
+    "late_blight": {
+      "precision": 1.0,
+      "recall": 0.9858657243816255,
+      "f1-score": 0.9928825622775801,
+      "support": 283.0
+    },
+    "leaf_mold": {
+      "precision": 0.9930555555555556,
+      "recall": 1.0,
+      "f1-score": 0.9965156794425087,
+      "support": 143.0
+    },
+    "mosaic_virus": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 56.0
+    },
+    "septoria_leaf_spot": {
+      "precision": 0.9962264150943396,
+      "recall": 1.0,
+      "f1-score": 0.998109640831758,
+      "support": 264.0
+    },
+    "spider_mites": {
+      "precision": 0.9919354838709677,
+      "recall": 0.9959514170040485,
+      "f1-score": 0.9939393939393939,
+      "support": 247.0
+    },
+    "target_spot": {
+      "precision": 0.9904306220095693,
+      "recall": 0.9857142857142858,
+      "f1-score": 0.9880668257756563,
+      "support": 210.0
+    },
+    "yellow_leaf_curl_virus": {
+      "precision": 0.9987293519695044,
+      "recall": 0.9987293519695044,
+      "f1-score": 0.9987293519695044,
+      "support": 787.0
+    }
+  }
+}

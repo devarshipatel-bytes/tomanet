@@ -1,0 +1,136 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{microtype}
+\hypersetup{colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black,breaklinks=true}
+\setlist{nosep,leftmargin=*}
+\newcommand{\model}{\textsc{TomaNet}}
+\newcommand{\modelcls}{\textsc{TomaNet-C}}
+\newcommand{\modeldet}{\textsc{TomaNet-D}}
+
+\title{\textbf{Research Context}\\[4pt]
+\large Why This Project Exists, and What Current Research Shows}
+\author{Tomato disease detection project}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Why This Problem Matters}
+Tomato is one of the most widely grown vegetable crops in the world, and diseases like
+bacterial spot, blight, and viral infections can wipe out a large share of a farmer's
+yield if caught late. A camera and a small model that can spot disease early -- ideally
+on an ordinary phone, not a data-centre GPU -- is genuinely useful. That is the practical
+goal behind this project: not just a high accuracy number on a lab dataset, but something
+that still works on a real photo, in a real field.
+
+\section{What Current Research (2024--2026) Shows}
+
+\subsection{Lab datasets are a solved problem -- and that's the trap}
+The most commonly used tomato dataset, PlantVillage, is already essentially solved.
+Recent papers report 99.4--99.96\% accuracy on it \cite{salman2025}. The differences
+between these papers are smaller than normal run-to-run noise. In plain terms: getting a
+slightly higher number on PlantVillage does not prove a new idea is any good, because
+everyone is already near the ceiling.
+
+The real problem is that PlantVillage photos are misleadingly easy: they are single
+leaves, photographed in a lab, on a plain, uniform background. Researchers have shown
+that a classifier looking at \emph{only 8 background pixels} (no leaf at all) can still
+guess the right disease 49\% of the time on this dataset, when random guessing should
+give about 2.6\% \cite{noyan2022}. The very first big tomato-disease paper, back in 2016,
+already found this exact trap: 99.35\% accuracy in the lab, dropping to 31.4\% on photos
+from the open web \cite{mohanty2016}. It keeps happening: a 99.96\%-accurate model drops
+to 68--74\% the moment it's tested on a different, real-world dataset
+\cite{salman2025}. A 2024 review that looked specifically at 35 studies using only real
+field photos concluded that models trained on lab data ``perform poorly on real-world
+images'' \cite{jelali2024}.
+
+\textbf{What this means for us:} we do not report PlantVillage accuracy as our main
+result. We use it as one dataset among several, and we care much more about how a model
+trained on it performs on a genuinely different, real field photo.
+
+\subsection{Detection has moved to real field data, and the numbers are public}
+For the detection side of the problem, current best practice is a fair comparison of
+YOLO-family detectors on the same field dataset, same settings, same seed. On the
+Tomato-Village field dataset (the same one we use), the best published result is
+mAP@0.5 = 0.936 with a large model, and mAP@0.5 = 0.864 with the smallest, phone-sized
+model \cite{ramos2025}. These numbers are the honest target for anyone working at the
+same small model size -- not something to casually claim beating without actually
+measuring it the same way.
+
+Small tweaks to an existing detector (adding an attention module, changing the loss
+function) commonly get reported as +1 to +4 mAP improvements on a single dataset and a
+single run \cite{chen2025yolov8n,meng2025}. That size of gain is close to normal
+run-to-run noise, so the research community is increasingly sceptical of papers that only
+show one such number without repeating the experiment.
+
+\subsection{Nobody has built one small model for both jobs}
+A few research groups have built models that do more than one job at once -- for
+example, classifying the plant species \emph{and} detecting disease in the same
+model. But every example found is heavy: one recent one uses about 49 million
+parameters \cite{pmjdm} -- roughly 15--35$\times$ larger than our biggest model. No
+lightweight model family (under about 5 million parameters) has been shown to work for
+\emph{both} whole-leaf classification and box-level detection on tomato specifically.
+This is the most direct gap our project is aimed at.
+
+\subsection{Explaining a model's decision is still just pictures, not numbers}
+Many tomato papers show a heat-map (Grad-CAM or similar) next to a photo, as a picture,
+to argue ``look, the model is focusing on the right spot.'' What is missing across the
+field is a \emph{number} that says how well the heat-map actually lines up with where the
+disease really is. This is a known open gap, not something we have solved yet -- but it
+shapes what a more rigorous version of this project should measure later, rather than
+trusting pictures alone.
+
+\section{What Approach We Are Taking, Because of This}
+Given the above, our approach is:
+\begin{enumerate}
+  \item \textbf{Build one small, shared model for both tasks} (classification and
+    detection) -- directly targeting the gap that no lightweight tomato model has done
+    this (\S2.3). This is the model described in the companion document, \emph{Our
+    Approach}.
+  \item \textbf{Never trust a single-dataset, single-run number.} Because the field is
+    full of small, single-seed ``improvements'' that don't replicate, we treat any result
+    from one dataset or one run as provisional, not a finding.
+  \item \textbf{Test on real field data, not just lab photos}, and be explicit about the
+    gap between the two, instead of only reporting the easy lab number.
+  \item \textbf{Fix data problems before trusting any accuracy number.} The literature
+    itself flags leakage and inconsistent splits as a recurring, under-reported problem.
+    We found and fixed exactly this kind of issue in our own detection dataset (see the
+    companion document for details) before training anything on it.
+\end{enumerate}
+
+\section{What We Are Not Claiming}
+To stay honest and in scope:
+\begin{itemize}
+  \item We do not claim state-of-the-art PlantVillage accuracy -- it is saturated and
+    not a meaningful contribution on its own.
+  \item We do not claim to beat the best published detection numbers on Tomato-Village
+    without actually running the same fair comparison ourselves, at the same model size.
+  \item Larger research questions raised by the literature -- learning from unlabelled
+    images, detecting a disease the model has never seen before, and turning
+    explainability into a real number instead of a picture -- are recognised as genuine,
+    open gaps, but are future work, not something this project has done yet.
+\end{itemize}
+
+\begin{thebibliography}{9}
+\footnotesize
+\bibitem{mohanty2016} S.~P. Mohanty, D.~P. Hughes, M.~Salath\'e, ``Using deep learning for image-based plant disease detection,'' \emph{Front. Plant Sci.} 7:1419, 2016. doi:10.3389/fpls.2016.01419
+\bibitem{noyan2022} M.~A. Noyan, ``Uncovering bias in the PlantVillage dataset,'' arXiv:2206.04374, 2022.
+\bibitem{salman2025} Salman, Muhammad, Han, ``Vision transformer with mixture-of-experts for plant disease,'' \emph{Front. Plant Sci.}, 2025. doi:10.3389/fpls.2025.1522985
+\bibitem{jelali2024} M.~Jelali, ``Deep learning for tomato disease detection using real-field datasets: a review,'' \emph{Front. Plant Sci.}, 2024. doi:10.3389/fpls.2024.1493322
+\bibitem{ramos2025} L.~Ramos, A.~D. Sappa, ``Benchmarking YOLOv8--YOLOv12 for tomato disease detection,'' \emph{Scientific Reports}, 2025. doi:10.1038/s41598-025-11064-0
+\bibitem{chen2025yolov8n} M.~Chen et al., ``Improved YOLOv8n for tomato disease detection in the field,'' \emph{Scientific Reports}, 2025. doi:10.1038/s41598-025-00405-8
+\bibitem{meng2025} Meng, Chen, Dong, Wang, ``YOLO11n with multi-scale fusion for tomato disease detection,'' \emph{Plants} 14(20):3174, 2025. doi:10.3390/plants14203174
+\bibitem{pmjdm} Fu, Wang, Wang, Sun, ``PMJDM: joint species classification and disease detection,'' \emph{Front. Plant Sci.}, 2025. doi:10.3389/fpls.2025.1599671
+\end{thebibliography}
+
+\end{document}
